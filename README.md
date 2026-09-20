@@ -2,7 +2,7 @@
   <img src="assets/icon.png" width="96" height="96" alt="">
 </p>
 
-<h1 align="center">Recent iCloud Photos</h1>
+<h1 align="center">Omarchy iCloud Photos</h1>
 
 <p align="center">The last weeks of your iCloud Photos library as a native window on Omarchy.<br>Browse by day, watch your videos, delete with undo, copy and save. No browser, no Apple hardware.</p>
 
@@ -17,6 +17,18 @@
 ## Why
 
 Apple does not make an iCloud Photos client for Linux, and the web app is a browser tab that forgets you every few days. This is the other way round: a small sync script keeps a local copy of your most recent photos and videos, and a Quickshell window shows them the way the Photos app does, newest at the bottom, in whatever Omarchy theme you are running. Everything is a keystroke away and nothing needs a mouse.
+
+## Built on
+
+The window is the only new thing here; the plumbing is existing, well-worn tools.
+
+- **[icloudpd](https://github.com/icloud-photos-downloader/icloud_photos_downloader)** does the downloading. It speaks the same private web API as icloud.com, keeps a session in `~/.config/icloudpd` and is used strictly in copy mode.
+- **pyicloud**, the module that ships inside icloudpd, handles sign-in with two-factor and the per-asset delete and restore, from a small Python helper in the repository's own virtualenv.
+- **bash and jq** build the index: one JSON file listing every item in the range with its thumbnail, preview, video and capture time.
+- **ImageMagick** with libheif makes the thumbnails and the JPEG previews of HEIC originals, which Qt cannot decode.
+- **ffmpeg** grabs video poster frames and tone-maps HDR videos (HLG and PQ) to SDR H.264 copies for playback, since Qt's player does no tone mapping.
+- **Quickshell** on Qt 6 renders the window in QML, with QtMultimedia for video and the Omarchy theme read live from `colors.toml`.
+- **systemd** user units run the sync every 30 minutes at low priority.
 
 ## What it does
 
@@ -37,11 +49,11 @@ It talks to iCloud through the same unofficial web API icloudpd uses. Apple can 
 
 ```bash
 yay -S quickshell imagemagick ffmpeg jq wl-clipboard icloudpd-bin
-git clone git@github.com:jankeesvw/recent-icloud-photos.git ~/Documents/github.com/jankeesvw/recent-icloud-photos
-~/Documents/github.com/jankeesvw/recent-icloud-photos/install.sh
+git clone git@github.com:jankeesvw/omarchy-icloud-photos.git ~/Documents/github.com/jankeesvw/omarchy-icloud-photos
+~/Documents/github.com/jankeesvw/omarchy-icloud-photos/install.sh
 ```
 
-The installer links the launcher and the sync script into `~/.local/bin`, adds "Recent iCloud Photos" to the app launcher, creates a small Python virtualenv for the iCloud helper and enables the sync timer. Start the app and sign in. The first sync takes a few minutes; HDR videos take the longest because each one gets a tone-mapped copy for playback.
+The installer links the launcher and the sync script into `~/.local/bin`, adds "Omarchy iCloud Photos" to the app launcher, creates a small Python virtualenv for the iCloud helper and enables the sync timer. Start the app and sign in. The first sync takes a few minutes; HDR videos take the longest because each one gets a tone-mapped copy for playback.
 
 ## Keys
 

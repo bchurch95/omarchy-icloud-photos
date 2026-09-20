@@ -1,6 +1,6 @@
 [Desktop Entry]
 Type=Application
-Name=Recent iCloud Photos
+Name=Omarchy iCloud Photos
 GenericName=Photo Viewer
 Comment=The last week of your iCloud Photos library
 Exec=icloud-recent
