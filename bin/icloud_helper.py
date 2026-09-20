@@ -30,7 +30,12 @@ import urllib.parse
 from pathlib import Path
 
 from pyicloud_ipd.base import PyiCloudService
-from pyicloud_ipd.exceptions import PyiCloudException, PyiCloudFailedLoginException
+from pyicloud_ipd.exceptions import (
+    PyiCloudConnectionErrorException,
+    PyiCloudException,
+    PyiCloudFailedLoginException,
+    PyiCloudServiceUnavailableException,
+)
 
 CONFIG = Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config")) / "icloud-recent" / "config"
 CACHE = Path(os.environ.get("XDG_CACHE_HOME", Path.home() / ".cache")) / "icloud-recent"
@@ -150,6 +155,12 @@ def cmd_login(args, cfg):
         api.authenticate()
     except PyiCloudFailedLoginException:
         fail("Wrong Apple ID or password")
+    except PyiCloudServiceUnavailableException:
+        # HTTP 503 from Apple: their rate limit after a few sign-ins in a row.
+        fail("Apple is holding off sign-ins for a while (too many attempts in a row). "
+             "Wait fifteen minutes or so and try again; retrying sooner extends the wait.")
+    except PyiCloudConnectionErrorException:
+        fail("Could not reach iCloud. Check the connection and try again.")
     except PyiCloudException as e:
         fail(f"Apple did not accept the login: {e}")
     if api.requires_2fa:
