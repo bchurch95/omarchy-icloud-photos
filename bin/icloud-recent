@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+# Launch the icloud-recent viewer. Quickshell runs the QML next to this script,
+# so the app works from wherever the repository is checked out.
+set -euo pipefail
+dir="$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)"
+exec quickshell -p "$dir/ui/shell.qml" "$@"

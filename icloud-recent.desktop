@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=iCloud Photos
+GenericName=Photo Viewer
+Comment=The last week of your iCloud Photos library
+Exec=icloud-recent
+Icon=@ICON@
+Terminal=false
+Categories=Graphics;Photography;Viewer;
+StartupNotify=true

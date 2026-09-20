@@ -1,0 +1,238 @@
+#!/usr/bin/env python3
+"""The app's line to iCloud: sign in, and move one asset to the bin or back.
+
+    icloud_helper.py login   --username APPLE_ID [--save-config]
+    icloud_helper.py find    --file PATH --ts EPOCH
+    icloud_helper.py delete  --key KEY --file PATH --ts EPOCH [--companion PATH]
+    icloud_helper.py restore --key KEY
+
+`login` reads the password as the first line on stdin and, when Apple asks
+for two-factor confirmation, prints {"step": "2fa"} and waits for the code
+on the next stdin line. The session then lands in icloudpd's cookie
+directory, so the sync tool works without ever seeing the password.
+
+`delete` is the only thing that writes to the library. It flips the asset's
+isDeleted flag, exactly what the Photos app on the phone does when you tap
+the bin: the item lands in "Recently Deleted" and stays recoverable there
+for 30 days. Nothing here can empty that folder. Locally the files move into
+<cache>/trash/<key>/ with a manifest, so `restore` can put both halves back.
+
+Every command prints JSON objects on stdout, one per line, and exits
+non-zero on failure.
+"""
+
+import argparse
+import json
+import os
+import shutil
+import sys
+import urllib.parse
+from pathlib import Path
+
+from pyicloud_ipd.base import PyiCloudService
+from pyicloud_ipd.exceptions import PyiCloudException, PyiCloudFailedLoginException
+
+CONFIG = Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config")) / "icloud-recent" / "config"
+CACHE = Path(os.environ.get("XDG_CACHE_HOME", Path.home() / ".cache")) / "icloud-recent"
+WALK_LIMIT = 600  # newest assets to inspect when looking for a filename
+TS_TOLERANCE = 180  # seconds between local mtime and iCloud capture time
+
+
+def read_config(require_id=True):
+    cfg = {"COOKIES": str(Path.home() / ".config" / "icloudpd")}
+    if CONFIG.exists():
+        for line in CONFIG.read_text().splitlines():
+            line = line.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            k, v = line.split("=", 1)
+            cfg[k.strip()] = os.path.expandvars(v.strip().strip('"').strip("'"))
+    if require_id and "APPLE_ID" not in cfg:
+        fail(f"APPLE_ID not set in {CONFIG}")
+    return cfg
+
+
+def save_apple_id(apple_id):
+    """Set APPLE_ID in the config file, keeping every other line as it is."""
+    CONFIG.parent.mkdir(parents=True, exist_ok=True)
+    lines = CONFIG.read_text().splitlines() if CONFIG.exists() else [
+        "# icloud-recent configuration, sourced by icloud-recent-sync",
+        "LIBRARY=$HOME/Pictures/iCloud",
+        "DAYS=7",
+    ]
+    out, done = [], False
+    for line in lines:
+        if line.strip().startswith("APPLE_ID="):
+            out.append(f"APPLE_ID={apple_id}"); done = True
+        else:
+            out.append(line)
+    if not done:
+        out.insert(1, f"APPLE_ID={apple_id}")
+    CONFIG.write_text("\n".join(out) + "\n")
+
+
+def emit(obj):
+    print(json.dumps(obj), flush=True)
+
+
+def fail(message, **extra):
+    print(json.dumps({"ok": False, "error": message, **extra}))
+    sys.exit(1)
+
+
+def connect(cfg):
+    api = PyiCloudService("com", cfg["APPLE_ID"], lambda: None, cookie_directory=cfg["COOKIES"])
+    api.authenticate()
+    if api.requires_2fa:
+        fail("iCloud session expired; run icloudpd --auth-only")
+    return api
+
+
+def find_asset(album, name, ts):
+    """Newest-first walk until the asset with this filename and capture time."""
+    seen = 0
+    for asset in album:
+        seen += 1
+        if asset.filename == name and abs(asset.created.timestamp() - ts) <= TS_TOLERANCE:
+            return asset
+        if seen >= WALK_LIMIT:
+            break
+    return None
+
+
+def describe(asset):
+    rec = asset._asset_record
+    return {
+        "record": rec["recordName"],
+        "changeTag": rec["recordChangeTag"],
+        "filename": asset.filename,
+        "created": asset.created.isoformat(),
+        "size": asset.size,
+    }
+
+
+def set_deleted(library, record_name, change_tag, deleted):
+    url = f"{library.service_endpoint}/records/modify?{urllib.parse.urlencode(library.params)}"
+    body = {
+        "atomic": True,
+        "desiredKeys": ["isDeleted"],
+        "operations": [{
+            "operationType": "update",
+            "record": {
+                "fields": {"isDeleted": {"value": 1 if deleted else 0}},
+                "recordChangeTag": change_tag,
+                "recordName": record_name,
+                "recordType": "CPLAsset",
+            },
+        }],
+        "zoneID": library.zone_id,
+    }
+    r = library.session.post(url, data=json.dumps(body), headers={"Content-type": "application/json"})
+    data = r.json()
+    records = data.get("records") or []
+    if not records or "serverErrorCode" in records[0]:
+        fail("iCloud refused the change", response=data)
+    return records[0].get("recordChangeTag", change_tag)
+
+
+def cmd_login(args, cfg):
+    password = sys.stdin.readline().rstrip("\n")
+    cookies = cfg["COOKIES"]
+    try:
+        api = PyiCloudService("com", args.username, lambda: password or None, cookie_directory=cookies)
+        api.authenticate()
+    except PyiCloudFailedLoginException:
+        fail("Wrong Apple ID or password")
+    except PyiCloudException as e:
+        fail(f"Apple did not accept the login: {e}")
+    if api.requires_2fa:
+        api.trigger_push_notification()
+        emit({"step": "2fa"})
+        code = sys.stdin.readline().strip()
+        if not (len(code) == 6 and code.isdigit()):
+            fail("The code should be six digits")
+        if not api.validate_2fa_code(code):
+            fail("Apple did not accept that code")
+        api.trust_session()
+    if args.save_config:
+        save_apple_id(args.username)
+    emit({"ok": True, "username": args.username})
+
+
+def cmd_find(args, cfg):
+    api = connect(cfg)
+    asset = find_asset(api.photos.all, os.path.basename(args.file), args.ts)
+    if asset is None:
+        fail("asset not found in the newest items")
+    print(json.dumps({"ok": True, **describe(asset)}))
+
+
+def cmd_delete(args, cfg):
+    files = [args.file] + ([args.companion] if args.companion else [])
+    for f in files:
+        if not os.path.isfile(f):
+            fail(f"not a file: {f}")
+    api = connect(cfg)
+    asset = find_asset(api.photos.all, os.path.basename(args.file), args.ts)
+    if asset is None:
+        fail("asset not found in the newest items")
+    info = describe(asset)
+
+    new_tag = set_deleted(api.photos, info["record"], info["changeTag"], True)
+
+    trash_dir = CACHE / "trash" / args.key
+    trash_dir.mkdir(parents=True, exist_ok=True)
+    moved = []
+    for f in files:
+        dest = trash_dir / os.path.basename(f)
+        shutil.move(f, dest)
+        moved.append([f, str(dest)])
+    manifest = {**info, "changeTag": new_tag, "files": moved}
+    (CACHE / "trash" / f"{args.key}.json").write_text(json.dumps(manifest, indent=2))
+    print(json.dumps({"ok": True, "key": args.key, **info}))
+
+
+def cmd_restore(args, cfg):
+    manifest_path = CACHE / "trash" / f"{args.key}.json"
+    if not manifest_path.exists():
+        fail("nothing to restore for this key")
+    manifest = json.loads(manifest_path.read_text())
+    api = connect(cfg)
+
+    # The change tag moves on every edit; look the record up in Recently
+    # Deleted for a fresh one and fall back to the tag we saved.
+    tag = manifest["changeTag"]
+    seen = 0
+    for asset in api.photos.recently_deleted:
+        seen += 1
+        if asset._asset_record["recordName"] == manifest["record"]:
+            tag = asset._asset_record["recordChangeTag"]
+            break
+        if seen >= WALK_LIMIT:
+            break
+    set_deleted(api.photos, manifest["record"], tag, False)
+
+    for src, dest in manifest["files"]:
+        if os.path.isfile(dest):
+            os.makedirs(os.path.dirname(src), exist_ok=True)
+            shutil.move(dest, src)
+    shutil.rmtree(manifest_path.with_suffix(""), ignore_errors=True)
+    manifest_path.unlink()
+    print(json.dumps({"ok": True, "key": args.key, "record": manifest["record"], "filename": manifest["filename"]}))
+
+
+def main():
+    p = argparse.ArgumentParser()
+    sub = p.add_subparsers(dest="cmd", required=True)
+    l = sub.add_parser("login"); l.add_argument("--username", required=True); l.add_argument("--save-config", action="store_true")
+    f = sub.add_parser("find"); f.add_argument("--file", required=True); f.add_argument("--ts", type=int, required=True)
+    d = sub.add_parser("delete"); d.add_argument("--key", required=True); d.add_argument("--file", required=True)
+    d.add_argument("--ts", type=int, required=True); d.add_argument("--companion")
+    r = sub.add_parser("restore"); r.add_argument("--key", required=True)
+    args = p.parse_args()
+    cfg = read_config(require_id=args.cmd != "login")
+    {"login": cmd_login, "find": cmd_find, "delete": cmd_delete, "restore": cmd_restore}[args.cmd](args, cfg)
+
+
+if __name__ == "__main__":
+    main()
