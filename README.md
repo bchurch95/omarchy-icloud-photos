@@ -31,14 +31,16 @@ icloudpd --auth-only --username you@example.com --cookie-directory ~/.config/icl
 |---|---|---|
 | `APPLE_ID` | set by the sign-in card | Apple ID to log in with |
 | `LIBRARY` | `~/Pictures/iCloud` | Where originals land, as `YYYY/MM/` folders |
-| `DAYS` | `7` | How many days the window shows |
-| `RECENT_LIMIT` | `500` | Newest assets icloudpd walks per run |
+| `DAYS` | `7` | How many days the window shows; the header says "last week", "last month" and so on |
+| `RECENT_LIMIT` | `500` | Newest assets icloudpd walks per run; raise it along with `DAYS` (2000 is plenty for a month) |
 | `COOKIES` | `~/.config/icloudpd` | icloudpd session directory |
 | `CACHE` | `~/.cache/icloud-recent` | Thumbnails, previews, SDR video copies, index |
 
 ## Keys
 
-In the grid a click selects and a click on the selected item opens it. Hovering does nothing. Shift-click or shift with the movement keys selects a range, ctrl-click adds or removes one item, ctrl-a selects everything and Esc clears. With several items selected, `y` copies them as a file list (file managers paste copies, chat apps attach them), `Y` copies their paths one per line and `d` moves them all to Recently Deleted, with one Undo for the whole batch. Clicking the filename in the footer copies the full path.
+Press `?` in the app for this list.
+
+In the grid a click selects and a click on the selected item opens it. Hovering does nothing. Shift-click or shift with the movement keys selects a range, ctrl-click adds or removes one item, ctrl-a selects everything and Esc clears. With several items selected, `y` copies them as a file list (file managers paste copies, chat apps attach them), `Y` copies their paths one per line and `d` moves them all to Recently Deleted, with one Undo for the whole batch. Clicking the filename in the footer, or in the viewer, copies the full path.
 
 | Key | Grid | Viewer |
 |---|---|---|
@@ -47,12 +49,14 @@ In the grid a click selects and a click on the selected item opens it. Hovering 
 | `←` / `→` | move | seek 5 s while a video is on screen (the timeline can be clicked and dragged too) |
 | `o` | open in default app | same |
 | `y` / `Y` | copy image / copy path | same |
+| `s` | save a copy to `~/Downloads` (also the Download button in the viewer) | same |
 | `d` | move to Recently Deleted (asks first) | same |
 | `u` | undo the last delete | same |
 | `r` | sync now | |
 | `-` / `+` | smaller / larger thumbnails (or the slider in the footer) | |
 | `g` / `G` | oldest / newest | |
 | `Esc`, `q` | quit | back to grid |
+| `?` | show the keys | same |
 
 ## How it works
 

@@ -30,10 +30,12 @@ ShellRoot {
   property int checkedCount: 0
   property int anchor: -1
   property bool viewerOpen: false
+  property bool helpOpen: false
   property var status: ({ state: "unknown", message: "", at: "" })
   property bool indexMissing: false
   // Apple ID from the config file; empty until the first sign-in.
   property string appleId: ""
+  property int rangeDays: 7
   property bool configLoaded: false
   // The sign-in card shows on first run and whenever the session has expired.
   readonly property bool needLogin: configLoaded && (appleId === "" || status.state === "auth-required")
@@ -133,7 +135,7 @@ ShellRoot {
     path: root.configPath
     watchChanges: true
     printErrors: false
-    onLoaded: { root.appleId = root.parseAppleId(text()); root.configLoaded = true; }
+    onLoaded: { root.appleId = root.parseAppleId(text()); root.rangeDays = root.parseDays(text()); root.configLoaded = true; }
     onLoadFailed: { root.appleId = ""; root.configLoaded = true; }
     onFileChanged: reload()
   }
@@ -176,6 +178,16 @@ ShellRoot {
   }
 
   Process { id: opener }
+  Process {
+    id: saver
+    stdout: StdioCollector {
+      onStreamFinished: {
+        var names = text.trim().split("\n").filter(function (n) { return n.length > 0; });
+        if (names.length === 1) toast.show("Saved to ~/Downloads/" + names[0], 3000);
+        else if (names.length > 1) toast.show("Saved " + names.length + " files to ~/Downloads", 3000);
+      }
+    }
+  }
   Process { id: copier }
 
   // Re-index in the background after a delete or restore so index.json
@@ -254,6 +266,20 @@ ShellRoot {
     if (diff === 1) return "Yesterday";
     var s = d.toLocaleDateString(Qt.locale("en_GB"), "dddd d MMMM");
     return s.charAt(0).toUpperCase() + s.slice(1);
+  }
+
+  function parseDays(raw) {
+    var m = String(raw || "").match(/^\s*DAYS=["']?(\d+)/m);
+    return m ? parseInt(m[1]) : 7;
+  }
+
+  function rangeLabel() {
+    var d = rangeDays;
+    if (d === 7) return "last week";
+    if (d === 14) return "last two weeks";
+    if (d >= 28 && d <= 31) return "last month";
+    if (d >= 89 && d <= 93) return "last three months";
+    return "last " + d + " days";
   }
 
   function parseAppleId(raw) {
@@ -351,6 +377,23 @@ ShellRoot {
     copier.command = ["bash", "-c", 'wl-copy --type "$1" < "$2"', "_", mime, src];
     copier.running = true;
     toast.show("Copied to clipboard");
+  }
+
+  // Copy the originals into ~/Downloads, never overwriting: a name that is
+  // taken gets a numbered suffix. Prints each saved name for the toast.
+  function saveToDownloads() {
+    var list = targets();
+    if (list.length === 0) return;
+    var paths = list.map(function (it) { return it.kind === "video" ? it.video : it.path; });
+    saver.command = ["bash", "-c", '
+      mkdir -p "$HOME/Downloads"
+      for src in "$@"; do
+        name=$(basename "$src"); base="${name%.*}"; ext="${name##*.}"; n=1
+        dest="$HOME/Downloads/$name"
+        while [ -e "$dest" ]; do dest="$HOME/Downloads/$base-$n.$ext"; n=$((n+1)); done
+        cp -p "$src" "$dest" && basename "$dest"
+      done', "_"].concat(paths);
+    saver.running = true;
   }
 
   function copyPath() {
@@ -542,6 +585,12 @@ ShellRoot {
         var k = event.key;
         var t = event.text;
         if (root.needLogin) return;
+        if (root.helpOpen) {
+          if (t === "?" || k === Qt.Key_Escape || t === "q") root.helpOpen = false;
+          event.accepted = true;
+          return;
+        }
+        if (t === "?") { root.helpOpen = true; event.accepted = true; return; }
         if (root.pendingDelete) {
           if (k === Qt.Key_Escape || t === "n") root.pendingDelete = null
           else if (k === Qt.Key_Return || k === Qt.Key_Enter || t === "y") root.confirmDelete()
@@ -552,6 +601,7 @@ ShellRoot {
         var ctrl = (event.modifiers & Qt.ControlModifier) !== 0;
         if (t === "d") { root.askDelete(); event.accepted = true; return; }
         if (t === "u") { root.undoDelete(); event.accepted = true; return; }
+        if (t === "s") { root.saveToDownloads(); event.accepted = true; return; }
         if (ctrl && k === Qt.Key_A) { root.checkAll(); event.accepted = true; return; }
         if (root.viewerOpen) {
           if (k === Qt.Key_Escape || t === "q" || k === Qt.Key_Backspace) root.viewerOpen = false
@@ -610,7 +660,7 @@ ShellRoot {
           }
           Text {
             anchors.baseline: parent.children[0].baseline
-            text: "last week"
+            text: root.rangeLabel()
             color: appTheme.foreground
             font.family: appTheme.fontFamily
             font.pixelSize: appTheme.fontSize
@@ -802,14 +852,14 @@ ShellRoot {
           visible: root.items.length === 0 && !root.needLogin
           Text {
             anchors.horizontalCenter: parent.horizontalCenter
-            text: root.busy ? "First sync…" : (root.indexMissing ? "Nothing synced yet" : "No photos in the last week")
+            text: root.busy ? "First sync…" : (root.indexMissing ? "Nothing synced yet" : "No photos in the " + root.rangeLabel().replace("last ", "last "))
             color: appTheme.foreground
             font.family: appTheme.fontFamily
             font.pixelSize: 16
           }
           Text {
             anchors.horizontalCenter: parent.horizontalCenter
-            text: root.busy ? "This can take a few minutes" : "Press r to sync"
+            text: root.busy ? "This can take a few minutes" : "Press r to sync, ? for the keys"
             color: appTheme.darkForeground
             font.family: appTheme.fontFamily
             font.pixelSize: appTheme.fontSize
@@ -861,12 +911,25 @@ ShellRoot {
           anchors.rightMargin: 20
           anchors.verticalCenter: parent.verticalCenter
           spacing: 18
-          Text {
+          Rectangle {
             anchors.verticalCenter: parent.verticalCenter
-            text: "hjkl move   shift range   enter view   d delete   u undo   o open   y copy   r sync   q quit"
-            color: appTheme.darkForeground
-            font.family: appTheme.fontFamily
-            font.pixelSize: appTheme.fontSize - 1
+            width: 24; height: 24; radius: 5
+            color: helpArea.containsMouse ? appTheme.lighterBackground : "transparent"
+            Text {
+              anchors.centerIn: parent
+              text: "?"
+              color: appTheme.darkForeground
+              font.family: appTheme.fontFamily
+              font.pixelSize: appTheme.fontSize
+              font.bold: true
+            }
+            MouseArea {
+              id: helpArea
+              anchors.fill: parent
+              hoverEnabled: true
+              cursorShape: Qt.PointingHandCursor
+              onClicked: root.helpOpen = !root.helpOpen
+            }
           }
           Row {
             anchors.verticalCenter: parent.verticalCenter
@@ -927,6 +990,8 @@ ShellRoot {
         item: root.viewerOpen ? root.current : null
         onRequestNext: root.move(1)
         onRequestPrev: root.move(-1)
+        onRequestCopyPath: root.copyPath()
+        onRequestSave: root.saveToDownloads()
       }
 
       // ---- Sign-in ----------------------------------------------------------
@@ -955,6 +1020,14 @@ ShellRoot {
         items: root.pendingDelete
         onConfirmed: root.confirmDelete()
         onCancelled: root.pendingDelete = null
+      }
+
+      // ---- Help -------------------------------------------------------------
+      Help {
+        anchors.fill: parent
+        theme: appTheme
+        visible: root.helpOpen
+        onRequestClose: root.helpOpen = false
       }
 
       // ---- Toast, with an Undo button after a delete ----------------------

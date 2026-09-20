@@ -18,6 +18,8 @@ Rectangle {
   signal requestClose()
   signal requestNext()
   signal requestPrev()
+  signal requestCopyPath()
+  signal requestSave()
 
   color: theme.darkerBackground
   visible: item !== null
@@ -237,11 +239,21 @@ Rectangle {
         font.family: theme.fontFamily
         font.pixelSize: theme.fontSize
       }
+      // The filename copies the full path, like in the grid's footer.
       Text {
         text: item ? item.name : ""
-        color: theme.darkForeground
+        color: nameArea.containsMouse ? theme.brightForeground : theme.darkForeground
+        font.underline: nameArea.containsMouse
         font.family: theme.fontFamily
         font.pixelSize: theme.fontSize
+        MouseArea {
+          id: nameArea
+          anchors.fill: parent
+          anchors.margins: -4
+          hoverEnabled: true
+          cursorShape: Qt.PointingHandCursor
+          onClicked: root.requestCopyPath()
+        }
       }
       Rectangle {
         visible: item && item.kind === "live"
@@ -262,18 +274,58 @@ Rectangle {
       }
     }
 
-    // Key hints give way to the caption when the window is narrow.
-    Text {
+    Row {
       anchors.right: parent.right
-      anchors.rightMargin: 16
+      anchors.rightMargin: 12
       anchors.verticalCenter: parent.verticalCenter
-      width: Math.max(0, Math.min(implicitWidth, parent.width - captionLeft.width - 48))
-      elide: Text.ElideRight
-      text: (root.videoShown ? "space pause   ←/→ seek   " : (root.hasVideo ? "space play   " : ""))
-        + "h/l prev/next   d delete   o open   y copy   esc back"
-      color: theme.darkForeground
-      font.family: theme.fontFamily
-      font.pixelSize: theme.fontSize - 1
+      spacing: 10
+
+      // Only a nudge for the one key that is not obvious; `?` has the rest.
+      Text {
+        anchors.verticalCenter: parent.verticalCenter
+        visible: root.hasVideo && !root.videoShown
+        text: "space plays"
+        color: theme.darkForeground
+        font.family: theme.fontFamily
+        font.pixelSize: theme.fontSize - 1
+      }
+
+      // Download: a copy of the original lands in ~/Downloads.
+      Rectangle {
+        anchors.verticalCenter: parent.verticalCenter
+        width: saveLabel.implicitWidth + 24
+        height: 28
+        radius: 6
+        color: saveArea.containsMouse ? theme.lighterBackground : "transparent"
+        border.color: theme.lighterBackground
+        border.width: 1
+        Row {
+          id: saveLabel
+          anchors.centerIn: parent
+          spacing: 8
+          Text {
+            anchors.verticalCenter: parent.verticalCenter
+            text: "\uf019"
+            color: theme.foreground
+            font.family: theme.fontFamily
+            font.pixelSize: 12
+          }
+          Text {
+            anchors.verticalCenter: parent.verticalCenter
+            text: "Download"
+            color: theme.foreground
+            font.family: theme.fontFamily
+            font.pixelSize: theme.fontSize - 1
+          }
+        }
+        MouseArea {
+          id: saveArea
+          anchors.fill: parent
+          hoverEnabled: true
+          cursorShape: Qt.PointingHandCursor
+          onClicked: root.requestSave()
+        }
+      }
     }
   }
 
