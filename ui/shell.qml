@@ -31,6 +31,10 @@ ShellRoot {
   property int anchor: -1
   property bool viewerOpen: false
   property bool helpOpen: false
+  // ICLOUD_RECENT_TOUR=1: scroll the grid from top to bottom by itself and
+  // open one photo at the end. Used to record the demo video.
+  readonly property bool tour: Quickshell.env("ICLOUD_RECENT_TOUR") === "1"
+  property bool tourStarted: false
   property var status: ({ state: "unknown", message: "", at: "" })
   property bool indexMissing: false
   // Apple ID from the config file; empty until the first sign-in.
@@ -125,7 +129,7 @@ ShellRoot {
     path: root.cacheDir + "/index.json"
     watchChanges: true
     printErrors: false
-    onLoaded: { root.indexMissing = false; root.applyIndex(text()); }
+    onLoaded: { root.indexMissing = false; root.applyIndex(text()); if (root.tour && !root.tourStarted) tourKickoff.start(); }
     onLoadFailed: { root.indexMissing = true; if (!sync.running && root.appleId !== "") sync.running = true; }
     onFileChanged: reload()
   }
@@ -562,6 +566,32 @@ ShellRoot {
   }
 
   Timer {
+    id: tourKickoff
+    interval: 1500
+    onTriggered: {
+      root.tourStarted = true;
+      root.pinBottom = false;
+      grid.contentY = 0;
+      tourScroll.to = Math.max(0, grid.contentHeight - grid.height);
+      tourScroll.start();
+    }
+  }
+  NumberAnimation {
+    id: tourScroll
+    target: grid
+    property: "contentY"
+    from: 0
+    duration: 11000
+    easing.type: Easing.InOutSine
+    onFinished: tourOpen.start()
+  }
+  Timer {
+    id: tourOpen
+    interval: 900
+    onTriggered: { root.selected = Math.max(0, root.items.length - 3); root.viewerOpen = true; }
+  }
+
+  Timer {
     id: settleTimer
     interval: 150
     onTriggered: { root.suppressReveal = false; grid.restoreY = -1; }
@@ -570,7 +600,9 @@ ShellRoot {
   FloatingWindow {
     id: win
     visible: true
-    title: "Omarchy iCloud Photos"
+    // A suffix from the environment lets a window rule single out a capture
+    // instance (see icloud-recent --demo --tour).
+    title: "Omarchy iCloud Photos" + (Quickshell.env("ICLOUD_RECENT_TITLE_SUFFIX") || "")
     implicitWidth: 1180
     implicitHeight: 800
     color: appTheme.background

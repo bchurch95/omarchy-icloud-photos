@@ -47,6 +47,8 @@ if ! flock -n 9; then
 fi
 
 skip_download=0
+# A demo library (see icloud-recent-demo) has nothing to download.
+[ "${DEMO:-0}" = 1 ] && skip_download=1
 for arg in "$@"; do
   case "$arg" in
     --index-only) skip_download=1 ;;

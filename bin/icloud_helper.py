@@ -135,8 +135,15 @@ def set_deleted(library, record_name, change_tag, deleted):
     return records[0].get("recordChangeTag", change_tag)
 
 
+def demo(cfg):
+    return cfg.get("DEMO") == "1"
+
+
 def cmd_login(args, cfg):
     password = sys.stdin.readline().rstrip("\n")
+    if demo(cfg):
+        emit({"ok": True, "username": args.username})
+        return
     cookies = cfg["COOKIES"]
     try:
         api = PyiCloudService("com", args.username, lambda: password or None, cookie_directory=cookies)
@@ -172,13 +179,16 @@ def cmd_delete(args, cfg):
     for f in files:
         if not os.path.isfile(f):
             fail(f"not a file: {f}")
-    api = connect(cfg)
-    asset = find_asset(api.photos.all, os.path.basename(args.file), args.ts)
-    if asset is None:
-        fail("asset not found in the newest items")
-    info = describe(asset)
-
-    new_tag = set_deleted(api.photos, info["record"], info["changeTag"], True)
+    if demo(cfg):
+        info = {"record": "demo", "changeTag": "", "filename": os.path.basename(args.file), "created": "", "size": 0}
+        new_tag = ""
+    else:
+        api = connect(cfg)
+        asset = find_asset(api.photos.all, os.path.basename(args.file), args.ts)
+        if asset is None:
+            fail("asset not found in the newest items")
+        info = describe(asset)
+        new_tag = set_deleted(api.photos, info["record"], info["changeTag"], True)
 
     trash_dir = CACHE / "trash" / args.key
     trash_dir.mkdir(parents=True, exist_ok=True)
@@ -197,20 +207,20 @@ def cmd_restore(args, cfg):
     if not manifest_path.exists():
         fail("nothing to restore for this key")
     manifest = json.loads(manifest_path.read_text())
-    api = connect(cfg)
-
-    # The change tag moves on every edit; look the record up in Recently
-    # Deleted for a fresh one and fall back to the tag we saved.
-    tag = manifest["changeTag"]
-    seen = 0
-    for asset in api.photos.recently_deleted:
-        seen += 1
-        if asset._asset_record["recordName"] == manifest["record"]:
-            tag = asset._asset_record["recordChangeTag"]
-            break
-        if seen >= WALK_LIMIT:
-            break
-    set_deleted(api.photos, manifest["record"], tag, False)
+    if not demo(cfg):
+        api = connect(cfg)
+        # The change tag moves on every edit; look the record up in Recently
+        # Deleted for a fresh one and fall back to the tag we saved.
+        tag = manifest["changeTag"]
+        seen = 0
+        for asset in api.photos.recently_deleted:
+            seen += 1
+            if asset._asset_record["recordName"] == manifest["record"]:
+                tag = asset._asset_record["recordChangeTag"]
+                break
+            if seen >= WALK_LIMIT:
+                break
+        set_deleted(api.photos, manifest["record"], tag, False)
 
     for src, dest in manifest["files"]:
         if os.path.isfile(dest):

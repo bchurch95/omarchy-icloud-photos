@@ -1,0 +1,108 @@
+#!/usr/bin/env bash
+# icloud-recent-demo: build a stand-in library out of the Omarchy theme
+# backgrounds, for screenshots and for trying the app without an account.
+#
+# Everything lives under <cache>/icloud-recent-demo: a library of "photos"
+# with capture times spread over the last days, a few short videos and Live
+# Photo pairs rendered with ffmpeg, and a config with DEMO=1 so the sync
+# script only indexes and the helper never talks to iCloud. `icloud-recent
+# --demo` runs this once and then starts the window against it.
+set -euo pipefail
+
+DEMO_HOME="${XDG_CACHE_HOME:-$HOME/.cache}/icloud-recent-demo"
+LIBRARY="$DEMO_HOME/library"
+XDG_CACHE="$DEMO_HOME/xdg-cache"
+XDG_CONFIG="$DEMO_HOME/xdg-config"
+CONFIG="$XDG_CONFIG/icloud-recent/config"
+DAYS=7
+
+if [ "${1:-}" = "--print-env" ]; then
+  echo "XDG_CACHE_HOME=$XDG_CACHE XDG_CONFIG_HOME=$XDG_CONFIG"
+  exit 0
+fi
+if [ "${1:-}" = "--reset" ]; then
+  rm -rf "$DEMO_HOME"
+fi
+
+mkdir -p "$LIBRARY" "$XDG_CACHE/icloud-recent" "$(dirname "$CONFIG")"
+cat > "$CONFIG" <<CFG
+# Demo configuration written by icloud-recent-demo
+DEMO=1
+APPLE_ID=demo@example.com
+LIBRARY=$LIBRARY
+CACHE=$XDG_CACHE/icloud-recent
+DAYS=$DAYS
+CFG
+
+# Source images: the backgrounds that ship with Omarchy and any in the
+# user's own themes.
+mapfile -t sources < <(find /usr/share/omarchy/themes "${XDG_CONFIG_HOME:-$HOME/.config}/omarchy/themes" \
+  -type f \( -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.png' \) -path '*background*' 2>/dev/null | sort -u)
+if [ "${#sources[@]}" -eq 0 ]; then
+  echo "icloud-recent-demo: no Omarchy theme backgrounds found" >&2
+  exit 1
+fi
+
+if find "$LIBRARY" -type f -name 'IMG_*' | grep -q .; then
+  echo "icloud-recent-demo: library already built at $LIBRARY (use --reset to rebuild)"
+else
+  echo "icloud-recent-demo: building from ${#sources[@]} backgrounds…"
+  now=$(date +%s)
+  n=1000
+  # Deterministic shuffle so the demo looks the same on every run.
+  mapfile -t shuffled < <(printf '%s\n' "${sources[@]}" | shuf --random-source=<(yes demo))
+
+  # A crop of a plain wallpaper is just a grey square; skip those.
+  flat() { [ "$(magick "$1" -colorspace Gray -format '%[fx:standard_deviation<0.06?1:0]' info:)" = 1 ]; }
+
+  place() {
+    # place SRC-FILE -> moves it into YYYY/MM with a capture time in the window
+    local src="$1" ts day dir
+    day=$(( n % DAYS ))
+    ts=$(( now - day * 86400 - (n * 7919) % 43200 - 28800 ))
+    dir="$LIBRARY/$(date -d "@$ts" +%Y/%m)"
+    mkdir -p "$dir"
+    mv "$src" "$dir/"
+    touch -d "@$ts" "$dir/$(basename "$src")"
+  }
+
+  tmp=$(mktemp -d)
+  i=0
+  for src in "${shuffled[@]}"; do
+    i=$((i + 1))
+    n=$((n + 1))
+    # The full picture as a photo…
+    magick "$src" -resize '2400x2400>' -quality 90 "$tmp/IMG_$n.JPG"
+    if flat "$tmp/IMG_$n.JPG"; then rm -f "$tmp/IMG_$n.JPG"; continue; fi
+    place "$tmp/IMG_$n.JPG"
+
+    # …and a portrait crop of it as a second, phone-shaped photo.
+    n=$((n + 1))
+    magick "$src" -gravity "$( (( i % 3 == 0 )) && echo West || (( i % 3 == 1 )) && echo Center || echo East)" \
+      -crop 9:16 +repage -resize '1600x1600>' -quality 90 "$tmp/IMG_$n.JPG"
+    if flat "$tmp/IMG_$n.JPG"; then rm -f "$tmp/IMG_$n.JPG"; else place "$tmp/IMG_$n.JPG"; fi
+
+    # Every fourth source becomes a short video with a slow pan.
+    if (( i % 4 == 0 )); then
+      n=$((n + 1))
+      ffmpeg -v error -y -loop 1 -i "$src" -t 6 -r 30 \
+        -vf "scale=1920:1080:force_original_aspect_ratio=increase,zoompan=z='1.0+0.0015*on':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=180:s=1920x1080:fps=30,format=yuv420p" \
+        -c:v libx264 -preset veryfast -crf 24 -movflags +faststart "$tmp/IMG_$n.MOV"
+      place "$tmp/IMG_$n.MOV"
+    fi
+
+    # Every fifth source becomes a Live Photo: still plus a two-second clip.
+    if (( i % 5 == 2 )); then
+      n=$((n + 1))
+      magick "$src" -gravity Center -crop 3:4 +repage -resize '1600x1600>' -quality 90 "$tmp/IMG_$n.JPG"
+      ffmpeg -v error -y -loop 1 -i "$tmp/IMG_$n.JPG" -t 2 -r 30 \
+        -vf "scale=1080:1440:force_original_aspect_ratio=increase,crop=1080:1440,zoompan=z='1.0+0.003*on':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=60:s=1080x1440:fps=30,format=yuv420p" \
+        -c:v libx264 -preset veryfast -crf 24 -movflags +faststart "$tmp/IMG_${n}_HEVC.MOV"
+      place "$tmp/IMG_$n.JPG"
+      place "$tmp/IMG_${n}_HEVC.MOV"
+    fi
+  done
+  rm -rf "$tmp"
+fi
+
+XDG_CONFIG_HOME="$XDG_CONFIG" XDG_CACHE_HOME="$XDG_CACHE" "$(dirname "$(readlink -f "$0")")/icloud-recent-sync" --index-only

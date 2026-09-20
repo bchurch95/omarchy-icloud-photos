@@ -14,13 +14,15 @@
 
 ![The grid: a month of photos and videos grouped by day, in the Omarchy theme](assets/screenshot.jpg)
 
+> **Credit where it is due.** The syncing is done by [icloudpd](https://github.com/icloud-photos-downloader/icloud_photos_downloader), the iCloud Photos Downloader by the icloud-photos-downloader project. I did not write it and this repository does not fork it. What you find here is the window, the index, the sign-in and delete helper on top of its pyicloud module, and the glue between them.
+
 ## Why
 
 Apple does not make an iCloud Photos client for Linux, and the web app is a browser tab that forgets you every few days. This is the other way round: a small sync script keeps a local copy of your most recent photos and videos, and a Quickshell window shows them the way the Photos app does, newest at the bottom, in whatever Omarchy theme you are running. Everything is a keystroke away and nothing needs a mouse.
 
 ## Built on
 
-The window is the only new thing here; the plumbing is existing, well-worn tools.
+The window is the only new thing here; the plumbing is existing, well-worn tools by other people.
 
 - **[icloudpd](https://github.com/icloud-photos-downloader/icloud_photos_downloader)** does the downloading. It speaks the same private web API as icloud.com, keeps a session in `~/.config/icloudpd` and is used strictly in copy mode.
 - **pyicloud**, the module that ships inside icloudpd, handles sign-in with two-factor and the per-asset delete and restore, from a small Python helper in the repository's own virtualenv.
@@ -54,6 +56,10 @@ git clone git@github.com:jankeesvw/omarchy-icloud-photos.git ~/Documents/github.
 ```
 
 The installer links the launcher and the sync script into `~/.local/bin`, adds "Omarchy iCloud Photos" to the app launcher, creates a small Python virtualenv for the iCloud helper and enables the sync timer. Start the app and sign in. The first sync takes a few minutes; HDR videos take the longest because each one gets a tone-mapped copy for playback.
+
+## Demo mode
+
+`icloud-recent --demo` starts the window on a stand-in library built from the Omarchy theme backgrounds: photos, portrait crops, a few slow-pan videos and Live Photo pairs, spread over the last week. It lives under `~/.cache/icloud-recent-demo`, apart from your real config and cache, and nothing in it talks to iCloud, so delete and undo can be tried freely. That is what the screenshots are made with. `icloud-recent-demo --reset` rebuilds it, and `icloud-recent --demo --tour` scrolls through the grid by itself and opens a photo, for recording a clip.
 
 ## Keys
 
