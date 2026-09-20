@@ -50,12 +50,12 @@ It talks to iCloud through the same unofficial web API icloudpd uses. Apple can 
 ## Install
 
 ```bash
-yay -S quickshell imagemagick ffmpeg jq wl-clipboard icloudpd-bin
+sudo pacman -S --needed quickshell imagemagick ffmpeg jq wl-clipboard
 git clone git@github.com:jankeesvw/omarchy-icloud-photos.git ~/Documents/github.com/jankeesvw/omarchy-icloud-photos
 ~/Documents/github.com/jankeesvw/omarchy-icloud-photos/install.sh
 ```
 
-The installer links the launcher and the sync script into `~/.local/bin`, adds "Omarchy iCloud Photos" to the app launcher, creates a small Python virtualenv for the iCloud helper and enables the sync timer. Start the app and sign in. The first sync takes a few minutes; HDR videos take the longest because each one gets a tone-mapped copy for playback.
+The installer links the launcher and the sync script into `~/.local/bin`, adds "Omarchy iCloud Photos" to the app launcher, fetches the icloudpd binary into `~/.local/bin` when it is not installed already, creates a small Python virtualenv for the iCloud helper (a 3.13 from mise when the system Python is newer) and enables the sync timer. Nothing after the pacman line needs root. Start the app and sign in. The first sync takes a few minutes; HDR videos take the longest because each one gets a tone-mapped copy for playback.
 
 ## Demo mode
 

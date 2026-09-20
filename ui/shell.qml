@@ -24,6 +24,10 @@ ShellRoot {
   property var items: []
   property var days: []          // [{label, indices: [int]}]
   property int selected: -1
+  // ICLOUD_RECENT_TOUR=1: scroll the grid from top to bottom by itself and
+  // open one photo at the end. Used to record the demo video.
+  readonly property bool tour: Quickshell.env("ICLOUD_RECENT_TOUR") === "1"
+  property bool tourStarted: false
   // Multi-selection: ids of the checked items and the index where a shift
   // range starts. The cursor (`selected`) always counts as selected too.
   property var checked: ({})
@@ -31,10 +35,6 @@ ShellRoot {
   property int anchor: -1
   property bool viewerOpen: false
   property bool helpOpen: false
-  // ICLOUD_RECENT_TOUR=1: scroll the grid from top to bottom by itself and
-  // open one photo at the end. Used to record the demo video.
-  readonly property bool tour: Quickshell.env("ICLOUD_RECENT_TOUR") === "1"
-  property bool tourStarted: false
   property var status: ({ state: "unknown", message: "", at: "" })
   property bool indexMissing: false
   // Apple ID from the config file; empty until the first sign-in.
@@ -45,7 +45,7 @@ ShellRoot {
   readonly property bool needLogin: configLoaded && (appleId === "" || status.state === "auth-required")
   // Keep the grid scrolled to the newest items (the bottom) until the user
   // moves away, so a fresh sync lands in view like on the phone.
-  property bool pinBottom: true
+  property bool pinBottom: !tour   // the tour starts at the top and scrolls down
   // True while the grid is being rebuilt, so a re-created selected thumb
   // does not yank the view towards itself before the layout has settled.
   property bool suppressReveal: false
@@ -567,11 +567,10 @@ ShellRoot {
 
   Timer {
     id: tourKickoff
-    interval: 1500
+    interval: 2500
     onTriggered: {
       root.tourStarted = true;
-      root.pinBottom = false;
-      grid.contentY = 0;
+      tourScroll.from = grid.contentY;
       tourScroll.to = Math.max(0, grid.contentHeight - grid.height);
       tourScroll.start();
     }
@@ -580,7 +579,6 @@ ShellRoot {
     id: tourScroll
     target: grid
     property: "contentY"
-    from: 0
     duration: 11000
     easing.type: Easing.InOutSine
     onFinished: tourOpen.start()
