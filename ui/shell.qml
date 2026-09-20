@@ -875,25 +875,28 @@ ShellRoot {
           }
         }
 
-        // Empty / first-run state
-        Column {
-          anchors.centerIn: parent
-          spacing: 10
-          visible: root.items.length === 0 && !root.needLogin
-          Text {
-            anchors.horizontalCenter: parent.horizontalCenter
-            text: root.busy ? "First sync…" : (root.indexMissing ? "Nothing synced yet" : "No photos in the " + root.rangeLabel().replace("last ", "last "))
-            color: appTheme.foreground
-            font.family: appTheme.fontFamily
-            font.pixelSize: 16
-          }
-          Text {
-            anchors.horizontalCenter: parent.horizontalCenter
-            text: root.busy ? "This can take a few minutes" : "Press r to sync, ? for the keys"
-            color: appTheme.darkForeground
-            font.family: appTheme.fontFamily
-            font.pixelSize: appTheme.fontSize
-          }
+      }
+
+      // Empty / first-run state. A sibling of the grid rather than a child:
+      // children of a Flickable live in its content item, which is only as
+      // tall as the content, so "centered" would sit at the top.
+      Column {
+        anchors.centerIn: grid
+        spacing: 10
+        visible: root.items.length === 0 && !root.needLogin
+        Text {
+          anchors.horizontalCenter: parent.horizontalCenter
+          text: root.busy ? "First sync…" : (root.indexMissing ? "Nothing synced yet" : "No photos in the " + root.rangeLabel().replace("last ", "last "))
+          color: appTheme.foreground
+          font.family: appTheme.fontFamily
+          font.pixelSize: 16
+        }
+        Text {
+          anchors.horizontalCenter: parent.horizontalCenter
+          text: root.busy ? "This can take a few minutes" : "Press r to sync, ? for the keys"
+          color: appTheme.darkForeground
+          font.family: appTheme.fontFamily
+          font.pixelSize: appTheme.fontSize
         }
       }
 
