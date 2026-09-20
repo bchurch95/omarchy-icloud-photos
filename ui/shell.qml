@@ -652,6 +652,11 @@ ShellRoot {
         if (t === "u") { root.undoDelete(); event.accepted = true; return; }
         if (t === "s") { root.saveToDownloads(); event.accepted = true; return; }
         if (ctrl && k === Qt.Key_A) { root.checkAll(); event.accepted = true; return; }
+        // x, or ctrl+space, ticks the item under the cursor like a ctrl-click.
+        if ((t === "x" || (ctrl && k === Qt.Key_Space)) && !root.viewerOpen) {
+          if (root.selected >= 0) { root.pinBottom = false; root.toggleChecked(root.selected); }
+          event.accepted = true; return;
+        }
         if (root.viewerOpen) {
           if (k === Qt.Key_Escape || t === "q" || k === Qt.Key_Backspace) root.viewerOpen = false
           // Arrows scrub while a video is on screen; h/l always move on.

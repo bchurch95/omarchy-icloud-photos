@@ -14,6 +14,7 @@ Rectangle {
       ["h j k l  arrows", "move"],
       ["shift + move", "select a range"],
       ["ctrl + click", "add or remove one"],
+      ["x  ctrl + space", "tick the one under the cursor"],
       ["ctrl + a", "select everything"],
       ["esc", "clear the selection, or quit"],
       ["enter  space", "open the viewer"],

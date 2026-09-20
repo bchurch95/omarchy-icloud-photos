@@ -84,7 +84,8 @@ Press `?` in the app for this list.
 |---|---|---|
 | `h` `j` `k` `l`, arrows | move | previous / next |
 | `Shift` + move, shift-click | select a range | |
-| `Ctrl` + click, `Ctrl` + `a` | add one, select all | |
+| `Ctrl` + click, `x`, `Ctrl` + `Space` | add or remove one | |
+| `Ctrl` + `a` | select all | |
 | `Enter`, `Space` | open the viewer | pause or resume, toggle a Live Photo |
 | `←` / `→` | move | seek 5 seconds |
 | `d` / `u` | delete, undo | same |
