@@ -319,7 +319,12 @@ ShellRoot {
   }
 
   function syncedLabel() {
-    if (busy) return status.state === "indexing" ? "Building thumbnails…" : "Syncing…";
+    if (busy) {
+      // The sync script says what it is doing; the count grows as files land.
+      var what = status.state === "indexing" ? (status.message || "Building thumbnails") : "Syncing";
+      var n = status.count > 0 ? "  " + status.count : "";
+      return what + "…" + n;
+    }
     if (!status.at) return "";
     var d = new Date(status.at);
     if (isNaN(d.getTime())) return "";

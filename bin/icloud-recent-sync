@@ -62,7 +62,12 @@ done
 # Everything currently on disk within the window becomes index.json. Called
 # repeatedly while icloudpd is still downloading, so the grid fills up as
 # files arrive, and once more at the end.
+#
+# build_index quick  skips the slow SDR conversion of HDR videos (they play
+#                    from the original for now) so the first index is fast
+# build_index        converts what still needs it and rebuilds everything
 build_index() {
+  local mode="${1:-full}"
 
   # --- Build the index -------------------------------------------------------
   # icloudpd sets each file's mtime to the asset's capture time, so mtime is
@@ -148,8 +153,13 @@ build_index() {
     if [ "$kind" = video ]; then
       video="$f"
       if is_hdr "$f"; then
-        video="$VIDEOS/$key.mp4"
-        fresh "$f" "$video" || make_sdr "$f" "$video" || { echo "sdr failed: $f" >&2; video="$f"; }
+        sdr="$VIDEOS/$key.mp4"
+        if fresh "$f" "$sdr"; then
+          video="$sdr"
+        elif [ "$mode" = full ]; then
+          # A fresh SDR copy also means a fresh, correctly coloured thumbnail.
+          if make_sdr "$f" "$sdr"; then video="$sdr"; rm -f "$thumb"; else echo "sdr failed: $f" >&2; fi
+        fi
       fi
       fresh "$f" "$thumb" || make_video_thumb "$video" "$thumb" || { echo "thumb failed: $f" >&2; continue; }
       duration=$(ffprobe -v error -show_entries format=duration -of csv=p=0 "$f" 2>/dev/null | cut -d. -f1)
@@ -221,7 +231,7 @@ if [ "$skip_download" = 0 ]; then
   while kill -0 "$dl" 2>/dev/null; do
     for _ in $(seq 1 20); do kill -0 "$dl" 2>/dev/null || break; sleep 1; done
     kill -0 "$dl" 2>/dev/null || break
-    build_index
+    build_index quick
     write_status syncing "Downloading from iCloud" "$count"
   done
   set +e
@@ -237,7 +247,10 @@ if [ "$skip_download" = 0 ]; then
   fi
 fi
 
+# Quick pass first so the grid is complete right away, then the HDR videos.
 write_status indexing "Building thumbnails"
+build_index quick
+write_status indexing "Converting HDR videos" "$count"
 build_index
 write_status ok "" "$count"
 echo "icloud-recent-sync: $count items in the last $DAYS days"
