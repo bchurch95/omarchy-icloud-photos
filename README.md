@@ -57,6 +57,12 @@ git clone git@github.com:jankeesvw/omarchy-icloud-photos.git ~/Documents/github.
 
 The installer links the launcher and the sync script into `~/.local/bin`, adds "Omarchy iCloud Photos" to the app launcher, fetches the icloudpd binary into `~/.local/bin` when it is not installed already, creates a small Python virtualenv for the iCloud helper (a 3.13 from mise when the system Python is newer) and enables the sync timer. Nothing after the pacman line needs root. Start the app and sign in. The first sync takes a few minutes; HDR videos take the longest because each one gets a tone-mapped copy for playback.
 
+### Let an agent install it
+
+Paste this into Claude Code, Codex or whatever runs your terminal:
+
+> Install Omarchy iCloud Photos from https://github.com/jankeesvw/omarchy-icloud-photos on this Omarchy machine. Install the pacman packages quickshell, imagemagick, ffmpeg, jq and wl-clipboard if they are missing. Clone the repository into ~/Documents/github.com/jankeesvw/omarchy-icloud-photos and run its install.sh; it needs no root and fetches icloudpd and a Python 3.13 itself. Then start `icloud-recent` and tell me it is ready for me to sign in; the sign-in happens inside the window and you never need my password. Do not run icloudpd with `--auto-delete` or `--keep-icloud-recent-days`, and do not change the config beyond what install.sh writes.
+
 ## Demo mode
 
 `icloud-recent --demo` starts the window on a stand-in library built from the Omarchy theme backgrounds: photos, portrait crops, a few slow-pan videos and Live Photo pairs, spread over the last week. It lives under `~/.cache/icloud-recent-demo`, apart from your real config and cache, and nothing in it talks to iCloud, so delete and undo can be tried freely. That is what the screenshots are made with. `icloud-recent-demo --reset` rebuilds it, and `icloud-recent --demo --tour` scrolls through the grid by itself and opens a photo, for recording a clip.
