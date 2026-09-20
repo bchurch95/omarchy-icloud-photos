@@ -1,84 +1,111 @@
-# Recent iCloud Photos
+<p align="center">
+  <img src="assets/icon.png" width="96" height="96" alt="">
+</p>
 
-![The grid: a week of photos and videos, grouped by day, in the Omarchy theme](assets/screenshot.png)
+<h1 align="center">Recent iCloud Photos</h1>
 
-The last week of your iCloud Photos library as a native window on Omarchy. A bash script pulls new photos and videos with [icloudpd](https://github.com/icloud-photos-downloader/icloud_photos_downloader) and builds a thumbnail index; a small [Quickshell](https://quickshell.org) app renders it with the current Omarchy theme.
+<p align="center">The last weeks of your iCloud Photos library as a native window on Omarchy.<br>Browse by day, watch your videos, delete with undo, copy and save. No browser, no Apple hardware.</p>
 
-The sync can only download: icloudpd runs in its default copy mode, without `--auto-delete` or `--keep-icloud-recent-days`. The one thing that writes to iCloud is the `d` key, which moves a single item to Recently Deleted, the same 30-day bin the Photos app uses. There is no bulk delete and nothing can empty that bin.
+<p align="center">
+  <a href="LICENSE"><img alt="MIT" src="https://img.shields.io/badge/license-MIT-blue?style=flat-square"></a>
+  <img alt="Quickshell" src="https://img.shields.io/badge/ui-Quickshell-7aa2f7?style=flat-square">
+  <img alt="Omarchy 4+" src="https://img.shields.io/badge/omarchy-4.0%2B-9ece6a?style=flat-square">
+</p>
+
+![The grid: a month of photos and videos grouped by day, in the Omarchy theme](assets/screenshot.jpg)
+
+## Why
+
+Apple does not make an iCloud Photos client for Linux, and the web app is a browser tab that forgets you every few days. This is the other way round: a small sync script keeps a local copy of your most recent photos and videos, and a Quickshell window shows them the way the Photos app does, newest at the bottom, in whatever Omarchy theme you are running. Everything is a keystroke away and nothing needs a mouse.
+
+## What it does
+
+- **Grid by day.** Photos, videos and Live Photos from the last week, month or whatever range you pick, grouped by day with the newest at the bottom. Thumbnails scale with a slider.
+- **Viewer.** Full-window stills, video with a timeline you can scrub, Live Photos that play on Space. iPhone videos are HDR and most Linux players show them washed out; here they look right.
+- **Delete with undo.** `d` moves an item, or a selection, to iCloud's Recently Deleted, the same 30-day bin the Photos app uses. Undo brings it back, from the toast or with `u`. Nothing here can empty the bin.
+- **Copy and save.** `y` puts the image on the clipboard, or a file list when several are selected. `s` and the Download button save a copy to `~/Downloads`. The filename copies its full path.
+- **Signs in by itself.** Apple ID, password and the two-factor code go in the window on first run and whenever the session expires. The password is never stored.
+- **Stays in sync.** A systemd user timer pulls new items every 30 minutes. An open window picks them up on its own.
+
+## Safety first
+
+The sync can only download. [icloudpd](https://github.com/icloud-photos-downloader/icloud_photos_downloader) runs in its default copy mode, without `--auto-delete` or `--keep-icloud-recent-days`, and the local library is never pruned: shrink the range and files simply leave the grid. The one thing that writes to iCloud is `d`, which flips a single asset's `isDeleted` flag, exactly what the Photos app does when you tap the bin. There is no bulk delete and no way to empty Recently Deleted from here.
+
+It talks to iCloud through the same unofficial web API icloudpd uses. Apple can change that at any time; when it breaks, the window says so.
 
 ## Install
 
 ```bash
-yay -S quickshell imagemagick ffmpeg jq wl-clipboard
-# icloudpd: AUR package icloudpd-bin, or drop the release binary in ~/.local/bin
+yay -S quickshell imagemagick ffmpeg jq wl-clipboard icloudpd-bin
 git clone git@github.com:jankeesvw/recent-icloud-photos.git ~/Documents/github.com/jankeesvw/recent-icloud-photos
 ~/Documents/github.com/jankeesvw/recent-icloud-photos/install.sh
 ```
 
-The installer symlinks the launcher and sync script into `~/.local/bin`, adds a desktop entry, and enables a systemd user timer that syncs every 30 minutes. Start the app with `icloud-recent`, or from the app launcher as "Recent iCloud Photos". The first run shows a sign-in card: Apple ID, password, then the six-digit code Apple pushes to your devices. The password is only used to open the session and is not stored; the session lands in `~/.config/icloudpd` where icloudpd finds it, and lasts a few months. When it expires the card comes back with the Apple ID filled in.
-
-The same session can also be made on the command line, which is handy on a headless box:
-
-```bash
-icloudpd --auth-only --username you@example.com --cookie-directory ~/.config/icloudpd
-```
-
-## Configuration
-
-`~/.config/icloud-recent/config` is sourced by the sync script:
-
-| Variable | Default | Meaning |
-|---|---|---|
-| `APPLE_ID` | set by the sign-in card | Apple ID to log in with |
-| `LIBRARY` | `~/Pictures/iCloud` | Where originals land, as `YYYY/MM/` folders |
-| `DAYS` | `7` | How many days the window shows; the header says "last week", "last month" and so on |
-| `RECENT_LIMIT` | `500` | Newest assets icloudpd walks per run; raise it along with `DAYS` (2000 is plenty for a month) |
-| `COOKIES` | `~/.config/icloudpd` | icloudpd session directory |
-| `CACHE` | `~/.cache/icloud-recent` | Thumbnails, previews, SDR video copies, index |
+The installer links the launcher and the sync script into `~/.local/bin`, adds "Recent iCloud Photos" to the app launcher, creates a small Python virtualenv for the iCloud helper and enables the sync timer. Start the app and sign in. The first sync takes a few minutes; HDR videos take the longest because each one gets a tone-mapped copy for playback.
 
 ## Keys
 
 Press `?` in the app for this list.
 
-In the grid a click selects and a click on the selected item opens it. Hovering does nothing. Shift-click or shift with the movement keys selects a range, ctrl-click adds or removes one item, ctrl-a selects everything and Esc clears. With several items selected, `y` copies them as a file list (file managers paste copies, chat apps attach them), `Y` copies their paths one per line and `d` moves them all to Recently Deleted, with one Undo for the whole batch. Clicking the filename in the footer, or in the viewer, copies the full path.
-
 | Key | Grid | Viewer |
 |---|---|---|
 | `h` `j` `k` `l`, arrows | move | previous / next |
-| `Enter`, `Space` | open viewer | pause or resume a video, show or hide the Live Photo clip |
-| `←` / `→` | move | seek 5 s while a video is on screen (the timeline can be clicked and dragged too) |
-| `o` | open in default app | same |
-| `y` / `Y` | copy image / copy path | same |
-| `s` | save a copy to `~/Downloads` (also the Download button in the viewer) | same |
-| `d` | move to Recently Deleted (asks first) | same |
-| `u` | undo the last delete | same |
+| `Shift` + move, shift-click | select a range | |
+| `Ctrl` + click, `Ctrl` + `a` | add one, select all | |
+| `Enter`, `Space` | open the viewer | pause or resume, toggle a Live Photo |
+| `←` / `→` | move | seek 5 seconds |
+| `d` / `u` | delete, undo | same |
+| `y` / `Y` | copy image or files, copy path | same |
+| `s` | save a copy to `~/Downloads` | same |
+| `o` | open in the default app | same |
 | `r` | sync now | |
-| `-` / `+` | smaller / larger thumbnails (or the slider in the footer) | |
-| `g` / `G` | oldest / newest | |
-| `Esc`, `q` | quit | back to grid |
-| `?` | show the keys | same |
+| `-` / `+` | smaller, larger thumbnails | |
+| `g` / `G` | oldest, newest | |
+| `Esc`, `q` | clear the selection, quit | back to the grid |
+
+A click selects, a second click on the selected item opens it. Hovering does nothing.
+
+## Configuration
+
+`~/.config/icloud-recent/config` is sourced by the sync script.
+
+| Variable | Default | Meaning |
+|---|---|---|
+| `APPLE_ID` | set by the sign-in card | The account to sync |
+| `LIBRARY` | `~/Pictures/iCloud` | Where originals land, as `YYYY/MM/` folders |
+| `DAYS` | `7` | How far back the grid goes. The header says "last week", "last month" and so on |
+| `RECENT_LIMIT` | `500` | Newest assets icloudpd walks per run. Raise it with `DAYS`; 2000 covers a month comfortably |
+| `COOKIES` | `~/.config/icloudpd` | Where the iCloud session lives |
+| `CACHE` | `~/.cache/icloud-recent` | Thumbnails, previews, SDR video copies and the index |
+
+The same session also works from the command line, for a headless box or when you prefer a terminal:
+
+```bash
+icloudpd --auth-only --username you@example.com --cookie-directory ~/.config/icloudpd
+```
 
 ## How it works
 
-`bin/icloud-recent-sync` runs icloudpd with `--recent 500 --skip-created-before <DAYS+1>d`, then indexes every file in the library newer than DAYS days. Capture time comes from the file's mtime, which icloudpd sets to the asset's creation date. For each item it caches a 400 px thumbnail and, for HEIC, a 2200 px JPEG preview, since Qt cannot decode HEIC. A Live Photo's `_HEVC.MOV` companion is folded into its still. iPhone videos are HLG BT.2020 and Qt's player does no tone mapping, so HDR videos get a tone-mapped SDR H.264 copy in the cache for playback; the original stays untouched and is what `o` and `Y` refer to.
+`bin/icloud-recent-sync` runs icloudpd for the newest items, then indexes every file in the library newer than `DAYS`. Capture time is the file's mtime, which icloudpd sets to the asset's creation date. Each item gets a 400 px thumbnail; HEIC also gets a 2200 px JPEG preview because Qt cannot decode HEIC. A Live Photo's `_HEVC.MOV` companion folds into its still. HDR videos (HLG or PQ) get a tone-mapped H.264 copy for playback; the original stays untouched and is what `o`, `s` and `Y` refer to. The result is `index.json` and `status.json` in the cache; the window watches both.
 
-Items are ordered oldest to newest, so the grid opens scrolled to the bottom like the Photos app on the phone and new items appear at the end. Signing in and deleting go through `bin/icloud_helper.py`, on the pyicloud module that ships with icloudpd, in a virtualenv the installer creates under `.venv`. It looks the asset up by filename and capture time among the newest items, flips the record's `isDeleted` flag (what the Photos app does), and moves the local files into `~/.cache/icloud-recent/trash/<key>/` with a manifest. Undo, from the toast button or `u`, flips the flag back and moves the files home. Recently Deleted on the phone remains the safety net for 30 days.
-
-The result of a sync is `~/.cache/icloud-recent/index.json` plus `status.json`; the QML watches both and re-renders when they change, so a sync started by the timer shows up in an open window.
-
-## Files
+`bin/icloud_helper.py` is the only code that talks to iCloud beyond downloading: it signs in, and it moves one asset at a time to Recently Deleted or back. It runs on the pyicloud module that ships with icloudpd, in the repository's own virtualenv.
 
 ```
 bin/icloud-recent          launcher: quickshell -p ui/shell.qml
 bin/icloud-recent-sync     download + index, safe to run any time
 bin/icloud-recent-helper   wrapper that runs icloud_helper.py in .venv
 bin/icloud_helper.py       login, and find / delete / restore one asset
-ui/Login.qml               sign-in card (Apple ID, password, 2FA code)
-ui/ConfirmDelete.qml       the "move to Recently Deleted?" dialog
 ui/shell.qml               window, grid, key handling
 ui/Thumb.qml               one grid cell
-ui/Viewer.qml              full-window still / video
+ui/Viewer.qml              full-window still / video with timeline
+ui/ConfirmDelete.qml       the "move to Recently Deleted?" dialog
+ui/Login.qml               sign-in card (Apple ID, password, 2FA code)
+ui/Help.qml                the ? overlay
 ui/Theme.qml               colours from ~/.local/state/omarchy/current/theme/colors.toml
-systemd/                   user service + 30 min timer
-install.sh                 symlinks everything into place
+systemd/                   user service + 30 minute timer
+install.sh                 links everything into place
 ```
+
+## License
+
+MIT.
