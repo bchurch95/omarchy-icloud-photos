@@ -388,20 +388,34 @@ ShellRoot {
     toast.show("Copied to clipboard");
   }
 
-  // Copy the originals into ~/Downloads, never overwriting: a name that is
-  // taken gets a numbered suffix. Prints each saved name for the toast.
+  // Save to ~/Downloads in a format anything can open: HEIC becomes a
+  // full-size JPEG, HDR video becomes its SDR MP4 copy, other video is
+  // remuxed to MP4 without re-encoding, JPEG and PNG are copied as they are.
+  // Never overwrites: a taken name gets a numbered suffix.
   function saveToDownloads() {
     var list = targets();
     if (list.length === 0) return;
-    var paths = list.map(function (it) { return it.kind === "video" ? it.video : it.path; });
+    var args = [];
+    for (var i = 0; i < list.length; i++) {
+      var it = list[i];
+      if (it.kind === "video") args.push(it.video, /\.mp4$/i.test(it.video) ? "copy" : "remux");
+      else if (/\.(heic|heif|tif|tiff|dng)$/i.test(it.path)) args.push(it.path, "jpeg");
+      else args.push(it.path, "copy");
+    }
     saver.command = ["bash", "-c", '
       mkdir -p "$HOME/Downloads"
-      for src in "$@"; do
-        name=$(basename "$src"); base="${name%.*}"; ext="${name##*.}"; n=1
-        dest="$HOME/Downloads/$name"
+      while [ $# -ge 2 ]; do
+        src="$1"; how="$2"; shift 2
+        name=$(basename "$src"); base="${name%.*}"
+        case "$how" in jpeg) ext=jpg ;; remux) ext=mp4 ;; *) ext="${name##*.}" ;; esac
+        n=1; dest="$HOME/Downloads/$base.$ext"
         while [ -e "$dest" ]; do dest="$HOME/Downloads/$base-$n.$ext"; n=$((n+1)); done
-        cp -p "$src" "$dest" && basename "$dest"
-      done', "_"].concat(paths);
+        case "$how" in
+          jpeg)  magick "$src" -auto-orient -quality 92 "$dest" ;;
+          remux) ffmpeg -v error -y -i "$src" -c copy -movflags +faststart "$dest" || ffmpeg -v error -y -i "$src" -c:v libx264 -preset veryfast -crf 20 -c:a aac "$dest" ;;
+          *)     cp -p "$src" "$dest" ;;
+        esac && touch -r "$src" "$dest" && basename "$dest"
+      done', "_"].concat(args);
     saver.running = true;
   }
 

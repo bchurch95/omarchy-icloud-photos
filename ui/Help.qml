@@ -28,7 +28,7 @@ Rectangle {
       ["o", "open in the default app"],
       ["y", "copy the image, or the files"],
       ["Y", "copy the path"],
-      ["s", "save a copy to ~/Downloads"]
+      ["s", "save to ~/Downloads as JPEG or MP4"]
     ]},
     { title: "Viewer", keys: [
       ["h l  j k", "previous, next"],
