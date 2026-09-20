@@ -1,6 +1,6 @@
 [Desktop Entry]
 Type=Application
-Name=iCloud Photos
+Name=Recent iCloud Photos
 GenericName=Photo Viewer
 Comment=The last week of your iCloud Photos library
 Exec=icloud-recent

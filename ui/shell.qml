@@ -527,7 +527,7 @@ ShellRoot {
   FloatingWindow {
     id: win
     visible: true
-    title: "iCloud Photos"
+    title: "Recent iCloud Photos"
     implicitWidth: 1180
     implicitHeight: 800
     color: appTheme.background
@@ -602,7 +602,7 @@ ShellRoot {
           anchors.verticalCenter: parent.verticalCenter
           spacing: 14
           Text {
-            text: "iCloud Photos"
+            text: "Recent iCloud Photos"
             color: appTheme.brightForeground
             font.family: appTheme.fontFamily
             font.pixelSize: 17

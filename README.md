@@ -1,4 +1,4 @@
-# icloud-recent
+# Recent iCloud Photos
 
 The last week of your iCloud Photos library as a native window on Omarchy. A bash script pulls new photos and videos with [icloudpd](https://github.com/icloud-photos-downloader/icloud_photos_downloader) and builds a thumbnail index; a small [Quickshell](https://quickshell.org) app renders it with the current Omarchy theme.
 
@@ -9,11 +9,11 @@ The sync can only download: icloudpd runs in its default copy mode, without `--a
 ```bash
 yay -S quickshell imagemagick ffmpeg jq wl-clipboard
 # icloudpd: AUR package icloudpd-bin, or drop the release binary in ~/.local/bin
-git clone git@github.com:jankeesvw/icloud-recent.git ~/Documents/github.com/jankeesvw/icloud-recent
-~/Documents/github.com/jankeesvw/icloud-recent/install.sh
+git clone git@github.com:jankeesvw/recent-icloud-photos.git ~/Documents/github.com/jankeesvw/recent-icloud-photos
+~/Documents/github.com/jankeesvw/recent-icloud-photos/install.sh
 ```
 
-The installer symlinks the launcher and sync script into `~/.local/bin`, adds a desktop entry, and enables a systemd user timer that syncs every 30 minutes. Start the app with `icloud-recent`, or from the app launcher as "iCloud Photos". The first run shows a sign-in card: Apple ID, password, then the six-digit code Apple pushes to your devices. The password is only used to open the session and is not stored; the session lands in `~/.config/icloudpd` where icloudpd finds it, and lasts a few months. When it expires the card comes back with the Apple ID filled in.
+The installer symlinks the launcher and sync script into `~/.local/bin`, adds a desktop entry, and enables a systemd user timer that syncs every 30 minutes. Start the app with `icloud-recent`, or from the app launcher as "Recent iCloud Photos". The first run shows a sign-in card: Apple ID, password, then the six-digit code Apple pushes to your devices. The password is only used to open the session and is not stored; the session lands in `~/.config/icloudpd` where icloudpd finds it, and lasts a few months. When it expires the card comes back with the Apple ID filled in.
 
 The same session can also be made on the command line, which is handy on a headless box:
 
