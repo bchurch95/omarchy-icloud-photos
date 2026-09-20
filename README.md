@@ -1,5 +1,7 @@
 # Recent iCloud Photos
 
+![The grid: a week of photos and videos, grouped by day, in the Omarchy theme](assets/screenshot.png)
+
 The last week of your iCloud Photos library as a native window on Omarchy. A bash script pulls new photos and videos with [icloudpd](https://github.com/icloud-photos-downloader/icloud_photos_downloader) and builds a thumbnail index; a small [Quickshell](https://quickshell.org) app renders it with the current Omarchy theme.
 
 The sync can only download: icloudpd runs in its default copy mode, without `--auto-delete` or `--keep-icloud-recent-days`. The one thing that writes to iCloud is the `d` key, which moves a single item to Recently Deleted, the same 30-day bin the Photos app uses. There is no bulk delete and nothing can empty that bin.
