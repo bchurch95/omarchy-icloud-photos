@@ -55,6 +55,7 @@ Apple does not make an iCloud Photos client for Linux, and the web app is a brow
 - **Delete with undo.** `d` moves an item, or a selection, to iCloud's Recently Deleted, the same 30-day bin the Photos app uses. Undo brings it back, from the toast or with `u`. Nothing here can empty that bin.
 - **Copy and save.** `y` puts the image on the clipboard, or a file list when several are selected. `s` and the Download button save a copy to `~/Downloads` as JPEG or MP4, whatever the original was. Clicking the filename copies its full path.
 - **Signs in by itself.** Apple ID, password and the two-factor code go into the window on first run and whenever the session expires. The password is only used to open the session and is never stored.
+- **Wallpaper.** `W` makes the current photo the Omarchy background, HEIC included.
 - **Stays in sync.** A systemd user timer pulls new items every 30 minutes. An open window picks them up on its own.
 - **Follows your theme.** Colours come live from Omarchy's `colors.toml`; switch themes and the window switches with you.
 
@@ -92,6 +93,7 @@ Press `?` in the app for this list.
 | `y` / `Y` | copy image or files, copy path | same |
 | `s` | save to `~/Downloads` as JPEG or MP4 | same |
 | `o` | open in the default app | same |
+| `W` | set as the Omarchy wallpaper | same |
 | `r` | sync now | |
 | `-` / `+` | smaller, larger thumbnails | |
 | `g` / `G` | oldest, newest | |
@@ -112,6 +114,7 @@ A click selects, a second click on the selected item opens it. Hovering does not
 | `RECENT_LIMIT` | `500` | Newest assets icloudpd walks per run. Raise it with `DAYS`; 2000 covers a month comfortably |
 | `COOKIES` | `~/.config/icloudpd` | Where the iCloud session lives |
 | `CACHE` | `~/.cache/icloud-recent` | Thumbnails, previews, SDR video copies and the index |
+| `LAUNCHER_NAME` | `Omarchy iCloud Photos` | What the app is called in the launcher; re-run `install.sh` after changing it |
 
 Changing `DAYS` never deletes anything: a smaller range only trims the cache, a larger one downloads what is missing on the next sync. "Everything" is not an option yet; the grid is not built for tens of thousands of items.
 

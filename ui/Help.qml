@@ -29,7 +29,8 @@ Rectangle {
       ["o", "open in the default app"],
       ["y", "copy the image, or the files"],
       ["Y", "copy the path"],
-      ["s", "save to ~/Downloads as JPEG or MP4"]
+      ["s", "save to ~/Downloads as JPEG or MP4"],
+      ["W", "set as the Omarchy wallpaper"]
     ]},
     { title: "Viewer", keys: [
       ["h l  j k", "previous, next"],

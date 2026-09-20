@@ -28,8 +28,11 @@ fi
 mkdir -p "$HOME/.local/bin" "$HOME/.local/share/applications" "$config/systemd/user" "$config/icloud-recent"
 ln -sf "$here/bin/icloud-recent" "$HOME/.local/bin/icloud-recent"
 ln -sf "$here/bin/icloud-recent-sync" "$HOME/.local/bin/icloud-recent-sync"
-# The desktop entry is copied, not linked, so the icon can get its absolute path.
-sed "s|@ICON@|$here/assets/icon.png|" "$here/icloud-recent.desktop" > "$HOME/.local/share/applications/icloud-recent.desktop"
+# The desktop entry is copied, not linked, so the icon can get its absolute
+# path. LAUNCHER_NAME in the config renames it in the app launcher.
+LAUNCHER_NAME=""
+[ -f "$config/icloud-recent/config" ] && . "$config/icloud-recent/config"
+sed "s|@ICON@|$here/assets/icon.png|; s|^Name=.*|Name=${LAUNCHER_NAME:-Omarchy iCloud Photos}|" "$here/icloud-recent.desktop" > "$HOME/.local/share/applications/icloud-recent.desktop"
 ln -sf "$here/systemd/icloud-recent-sync.service" "$config/systemd/user/icloud-recent-sync.service"
 ln -sf "$here/systemd/icloud-recent-sync.timer" "$config/systemd/user/icloud-recent-sync.timer"
 

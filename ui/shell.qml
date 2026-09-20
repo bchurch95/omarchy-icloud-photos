@@ -183,6 +183,12 @@ ShellRoot {
 
   Process { id: opener }
   Process {
+    id: wallpaper
+    stdout: StdioCollector {
+      onStreamFinished: toast.show(text.trim().length > 0 ? text.trim() : "Set as wallpaper", 2500)
+    }
+  }
+  Process {
     id: saver
     stdout: StdioCollector {
       onStreamFinished: {
@@ -419,6 +425,24 @@ ShellRoot {
     saver.running = true;
   }
 
+  // W: the current photo becomes the Omarchy background. HEIC first becomes
+  // a full-size JPEG in the cache, since the shell cannot decode HEIC.
+  function setWallpaper() {
+    if (!current || current.kind === "video") return;
+    var it = current;
+    wallpaper.command = ["bash", "-c", '
+      src="$1"; cache="$2"; key="$3"
+      case "${src,,}" in
+        *.heic|*.heif|*.tif|*.tiff|*.dng)
+          mkdir -p "$cache/wallpaper"
+          out="$cache/wallpaper/$key.jpg"
+          [ -s "$out" ] || magick "$src" -auto-orient -quality 92 "$out" || { echo "Could not convert $src"; exit 0; }
+          src="$out" ;;
+      esac
+      omarchy-theme-bg-set "$src" >/dev/null 2>&1 && echo "Wallpaper set" || echo "Could not set the wallpaper"', "_", it.path, root.cacheDir, it.id];
+    wallpaper.running = true;
+  }
+
   function copyPath() {
     var list = targets();
     if (list.length === 0) return;
@@ -651,6 +675,7 @@ ShellRoot {
         if (t === "d") { root.askDelete(); event.accepted = true; return; }
         if (t === "u") { root.undoDelete(); event.accepted = true; return; }
         if (t === "s") { root.saveToDownloads(); event.accepted = true; return; }
+        if (t === "W") { root.setWallpaper(); event.accepted = true; return; }
         if (ctrl && k === Qt.Key_A) { root.checkAll(); event.accepted = true; return; }
         // x, or ctrl+space, ticks the item under the cursor like a ctrl-click.
         if ((t === "x" || (ctrl && k === Qt.Key_Space)) && !root.viewerOpen) {
