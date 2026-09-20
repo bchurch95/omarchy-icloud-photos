@@ -58,14 +58,153 @@ for arg in "$@"; do
   esac
 done
 
+# --- Build the index -------------------------------------------------------
+# Everything currently on disk within the window becomes index.json. Called
+# repeatedly while icloudpd is still downloading, so the grid fills up as
+# files arrive, and once more at the end.
+build_index() {
+
+  # --- Build the index -------------------------------------------------------
+  # icloudpd sets each file's mtime to the asset's capture time, so mtime is
+  # the date we group by. That avoids parsing EXIF from HEIC, JPG, PNG and MOV
+  # with four different tools.
+  cutoff=$(date -d "-$DAYS days 00:00" +%s)
+
+  is_image() { case "${1,,}" in *.heic|*.heif|*.jpg|*.jpeg|*.png|*.webp|*.gif|*.tif|*.tiff|*.dng) return 0;; esac; return 1; }
+  is_video() { case "${1,,}" in *.mov|*.mp4|*.m4v) return 0;; esac; return 1; }
+  needs_preview() { case "${1,,}" in *.heic|*.heif|*.tif|*.tiff|*.dng) return 0;; esac; return 1; }
+
+  key_for() { printf '%s' "$1" | sha1sum | cut -c1-20; }
+
+  make_thumb() {
+    # make_thumb SRC OUT (image)
+    magick "$1" -auto-orient -thumbnail "${THUMB_SIZE}x${THUMB_SIZE}^" \
+      -gravity center -extent "${THUMB_SIZE}x${THUMB_SIZE}" -quality 84 "$2"
+  }
+  make_video_thumb() {
+    # make_video_thumb SRC OUT
+    ffmpeg -v error -y -ss 0.5 -i "$1" -frames:v 1 \
+      -vf "scale=${THUMB_SIZE}:${THUMB_SIZE}:force_original_aspect_ratio=increase,crop=${THUMB_SIZE}:${THUMB_SIZE}" \
+      "$2" 2>/dev/null || ffmpeg -v error -y -i "$1" -frames:v 1 \
+      -vf "scale=${THUMB_SIZE}:${THUMB_SIZE}:force_original_aspect_ratio=increase,crop=${THUMB_SIZE}:${THUMB_SIZE}" "$2"
+  }
+  # iPhone video is HLG (or PQ) in BT.2020. Qt's video player does no tone
+  # mapping, so those play with a washed-out pink cast. For them the viewer
+  # gets an SDR H.264 copy in the cache; the original is never touched.
+  is_hdr() {
+    case "$(ffprobe -v error -select_streams v:0 -show_entries stream=color_transfer -of csv=p=0 "$1" 2>/dev/null | tr -d ",")" in
+      arib-std-b67|smpte2084) return 0 ;;
+    esac
+    return 1
+  }
+  make_sdr() {
+    # make_sdr SRC OUT
+    ffmpeg -v error -y -i "$1" \
+      -vf "zscale=t=linear:npl=100,format=gbrpf32le,zscale=p=bt709,tonemap=hable:desat=0,zscale=t=bt709:m=bt709:r=tv,format=yuv420p,scale=w='if(gt(iw,ih),min(${PREVIEW_SIZE},iw),-2)':h='if(gt(iw,ih),-2,min(${PREVIEW_SIZE},ih))'" \
+      -c:v libx264 -preset veryfast -crf 23 -maxrate 8M -bufsize 16M \
+      -c:a aac -b:a 128k -movflags +faststart "$2.tmp.mp4" && mv "$2.tmp.mp4" "$2"
+  }
+  make_preview() {
+    magick "$1" -auto-orient -resize "${PREVIEW_SIZE}x${PREVIEW_SIZE}>" -quality 90 "$2"
+  }
+  fresh() { [ -s "$2" ] && [ ! "$1" -nt "$2" ]; }
+
+  mapfile -d '' files < <(find "$LIBRARY" -type f -newermt "@$cutoff" -print0 | sort -z)
+
+  declare -A present=()   # basename without extension -> path, for live pairs
+  for f in "${files[@]}"; do
+    base="${f%.*}"
+    present["$base"]="$f"
+  done
+
+  items=()
+  keep=()
+  count=0
+  for f in "${files[@]}"; do
+    name="$(basename "$f")"
+    base="${f%.*}"
+    if is_video "$f"; then
+      # A Live Photo's motion half is X_HEVC.MOV next to X.HEIC (or X.JPG).
+      # It belongs to the still, not to the grid.
+      if [[ "$base" == *_HEVC ]]; then
+        still="${base%_HEVC}"
+        if [ -n "${present[$still]:-}" ]; then
+          continue
+        fi
+      fi
+      kind=video
+    elif is_image "$f"; then
+      kind=photo
+    else
+      continue
+    fi
+
+    key=$(key_for "${f#"$LIBRARY"/}")
+    thumb="$THUMBS/$key.jpg"
+    preview=""
+    video=""
+    duration=0
+
+    if [ "$kind" = video ]; then
+      video="$f"
+      if is_hdr "$f"; then
+        video="$VIDEOS/$key.mp4"
+        fresh "$f" "$video" || make_sdr "$f" "$video" || { echo "sdr failed: $f" >&2; video="$f"; }
+      fi
+      fresh "$f" "$thumb" || make_video_thumb "$video" "$thumb" || { echo "thumb failed: $f" >&2; continue; }
+      duration=$(ffprobe -v error -show_entries format=duration -of csv=p=0 "$f" 2>/dev/null | cut -d. -f1)
+      duration=${duration:-0}
+      preview="$thumb"
+    else
+      fresh "$f" "$thumb" || make_thumb "$f" "$thumb" || { echo "thumb failed: $f" >&2; continue; }
+      if needs_preview "$f"; then
+        preview="$PREVIEWS/$key.jpg"
+        fresh "$f" "$preview" || make_preview "$f" "$preview" || preview="$thumb"
+      else
+        preview="$f"
+      fi
+      live="${present[${base}_HEVC]:-}"
+      if [ -n "$live" ]; then
+        kind=live
+        video="$live"
+      fi
+    fi
+
+    ts=$(stat -c %Y "$f")
+    items+=("$(jq -cn \
+      --arg id "$key" --arg path "$f" --arg name "$name" --arg kind "$kind" \
+      --arg thumb "$thumb" --arg preview "$preview" --arg video "$video" \
+      --argjson ts "$ts" --argjson duration "${duration:-0}" \
+      --arg date "$(date -d "@$ts" +%F)" --arg time "$(date -d "@$ts" +%H:%M)" \
+      '{id: $id, path: $path, name: $name, kind: $kind, thumb: $thumb, preview: $preview,
+        video: $video, ts: $ts, duration: $duration, date: $date, time: $time}')")
+    keep+=("$key")
+    count=$((count + 1))
+  done
+
+  # Oldest first: the grid reads like the iPhone Photos app, newest at the bottom.
+  printf '%s\n' "${items[@]}" | jq -s 'sort_by(.ts)' > "$INDEX.tmp"
+  mv "$INDEX.tmp" "$INDEX"
+
+  # Drop cached thumbnails of items that fell outside the window.
+  if [ "${#keep[@]}" -gt 0 ]; then
+    printf '%s\n' "${keep[@]}" | sort > "$CACHE/keep.txt"
+    for dir in "$THUMBS" "$PREVIEWS" "$VIDEOS"; do
+      find "$dir" -type f \( -name '*.jpg' -o -name '*.mp4' \) -printf '%f\n' | sed 's/\.[a-z0-9]*$//' | sort -u \
+        | comm -23 - "$CACHE/keep.txt" | while read -r stale; do rm -f "$dir/$stale.jpg" "$dir/$stale.mp4"; done
+    done
+  fi
+
+
+}
+
 if [ "$skip_download" = 0 ]; then
   write_status syncing "Downloading from iCloud"
+  # --skip-created-before gets one extra day so a photo taken late on day
+  # DAYS in another time zone is still included; the viewer trims precisely.
   # No --set-exif-datetime: it rewrites files that lack an EXIF date, the
   # size then differs from iCloud's and the next run downloads them again
   # under a "-<size>" suffix. Capture time is taken from mtime instead.
-  # --skip-created-before gets one extra day so a photo taken late on day
-  # DAYS in another time zone is still included; the viewer trims precisely.
-  set +e
   icloudpd \
     --username "$APPLE_ID" \
     --cookie-directory "$COOKIES" \
@@ -76,8 +215,17 @@ if [ "$skip_download" = 0 ]; then
     --folder-structure '{:%Y/%m}' \
     --no-progress-bar \
     --log-level info \
-    > "$LOG" 2>&1
-  rc=$?
+    > "$LOG" 2>&1 &
+  dl=$!
+  # Index what has landed so far every 20 seconds while the download runs.
+  while kill -0 "$dl" 2>/dev/null; do
+    for _ in $(seq 1 20); do kill -0 "$dl" 2>/dev/null || break; sleep 1; done
+    kill -0 "$dl" 2>/dev/null || break
+    build_index
+    write_status syncing "Downloading from iCloud" "$count"
+  done
+  set +e
+  wait "$dl"; rc=$?
   set -e
   if [ "$rc" != 0 ]; then
     if grep -qiE 'two-factor|2fa|two-step|password|Please enter' "$LOG"; then
@@ -90,137 +238,6 @@ if [ "$skip_download" = 0 ]; then
 fi
 
 write_status indexing "Building thumbnails"
-
-# --- Build the index -------------------------------------------------------
-# icloudpd sets each file's mtime to the asset's capture time, so mtime is
-# the date we group by. That avoids parsing EXIF from HEIC, JPG, PNG and MOV
-# with four different tools.
-cutoff=$(date -d "-$DAYS days 00:00" +%s)
-
-is_image() { case "${1,,}" in *.heic|*.heif|*.jpg|*.jpeg|*.png|*.webp|*.gif|*.tif|*.tiff|*.dng) return 0;; esac; return 1; }
-is_video() { case "${1,,}" in *.mov|*.mp4|*.m4v) return 0;; esac; return 1; }
-needs_preview() { case "${1,,}" in *.heic|*.heif|*.tif|*.tiff|*.dng) return 0;; esac; return 1; }
-
-key_for() { printf '%s' "$1" | sha1sum | cut -c1-20; }
-
-make_thumb() {
-  # make_thumb SRC OUT (image)
-  magick "$1" -auto-orient -thumbnail "${THUMB_SIZE}x${THUMB_SIZE}^" \
-    -gravity center -extent "${THUMB_SIZE}x${THUMB_SIZE}" -quality 84 "$2"
-}
-make_video_thumb() {
-  # make_video_thumb SRC OUT
-  ffmpeg -v error -y -ss 0.5 -i "$1" -frames:v 1 \
-    -vf "scale=${THUMB_SIZE}:${THUMB_SIZE}:force_original_aspect_ratio=increase,crop=${THUMB_SIZE}:${THUMB_SIZE}" \
-    "$2" 2>/dev/null || ffmpeg -v error -y -i "$1" -frames:v 1 \
-    -vf "scale=${THUMB_SIZE}:${THUMB_SIZE}:force_original_aspect_ratio=increase,crop=${THUMB_SIZE}:${THUMB_SIZE}" "$2"
-}
-# iPhone video is HLG (or PQ) in BT.2020. Qt's video player does no tone
-# mapping, so those play with a washed-out pink cast. For them the viewer
-# gets an SDR H.264 copy in the cache; the original is never touched.
-is_hdr() {
-  case "$(ffprobe -v error -select_streams v:0 -show_entries stream=color_transfer -of csv=p=0 "$1" 2>/dev/null | tr -d ",")" in
-    arib-std-b67|smpte2084) return 0 ;;
-  esac
-  return 1
-}
-make_sdr() {
-  # make_sdr SRC OUT
-  ffmpeg -v error -y -i "$1" \
-    -vf "zscale=t=linear:npl=100,format=gbrpf32le,zscale=p=bt709,tonemap=hable:desat=0,zscale=t=bt709:m=bt709:r=tv,format=yuv420p,scale=w='if(gt(iw,ih),min(${PREVIEW_SIZE},iw),-2)':h='if(gt(iw,ih),-2,min(${PREVIEW_SIZE},ih))'" \
-    -c:v libx264 -preset veryfast -crf 23 -maxrate 8M -bufsize 16M \
-    -c:a aac -b:a 128k -movflags +faststart "$2.tmp.mp4" && mv "$2.tmp.mp4" "$2"
-}
-make_preview() {
-  magick "$1" -auto-orient -resize "${PREVIEW_SIZE}x${PREVIEW_SIZE}>" -quality 90 "$2"
-}
-fresh() { [ -s "$2" ] && [ ! "$1" -nt "$2" ]; }
-
-mapfile -d '' files < <(find "$LIBRARY" -type f -newermt "@$cutoff" -print0 | sort -z)
-
-declare -A present=()   # basename without extension -> path, for live pairs
-for f in "${files[@]}"; do
-  base="${f%.*}"
-  present["$base"]="$f"
-done
-
-items=()
-keep=()
-count=0
-for f in "${files[@]}"; do
-  name="$(basename "$f")"
-  base="${f%.*}"
-  if is_video "$f"; then
-    # A Live Photo's motion half is X_HEVC.MOV next to X.HEIC (or X.JPG).
-    # It belongs to the still, not to the grid.
-    if [[ "$base" == *_HEVC ]]; then
-      still="${base%_HEVC}"
-      if [ -n "${present[$still]:-}" ]; then
-        continue
-      fi
-    fi
-    kind=video
-  elif is_image "$f"; then
-    kind=photo
-  else
-    continue
-  fi
-
-  key=$(key_for "${f#"$LIBRARY"/}")
-  thumb="$THUMBS/$key.jpg"
-  preview=""
-  video=""
-  duration=0
-
-  if [ "$kind" = video ]; then
-    video="$f"
-    if is_hdr "$f"; then
-      video="$VIDEOS/$key.mp4"
-      fresh "$f" "$video" || make_sdr "$f" "$video" || { echo "sdr failed: $f" >&2; video="$f"; }
-    fi
-    fresh "$f" "$thumb" || make_video_thumb "$video" "$thumb" || { echo "thumb failed: $f" >&2; continue; }
-    duration=$(ffprobe -v error -show_entries format=duration -of csv=p=0 "$f" 2>/dev/null | cut -d. -f1)
-    duration=${duration:-0}
-    preview="$thumb"
-  else
-    fresh "$f" "$thumb" || make_thumb "$f" "$thumb" || { echo "thumb failed: $f" >&2; continue; }
-    if needs_preview "$f"; then
-      preview="$PREVIEWS/$key.jpg"
-      fresh "$f" "$preview" || make_preview "$f" "$preview" || preview="$thumb"
-    else
-      preview="$f"
-    fi
-    live="${present[${base}_HEVC]:-}"
-    if [ -n "$live" ]; then
-      kind=live
-      video="$live"
-    fi
-  fi
-
-  ts=$(stat -c %Y "$f")
-  items+=("$(jq -cn \
-    --arg id "$key" --arg path "$f" --arg name "$name" --arg kind "$kind" \
-    --arg thumb "$thumb" --arg preview "$preview" --arg video "$video" \
-    --argjson ts "$ts" --argjson duration "${duration:-0}" \
-    --arg date "$(date -d "@$ts" +%F)" --arg time "$(date -d "@$ts" +%H:%M)" \
-    '{id: $id, path: $path, name: $name, kind: $kind, thumb: $thumb, preview: $preview,
-      video: $video, ts: $ts, duration: $duration, date: $date, time: $time}')")
-  keep+=("$key")
-  count=$((count + 1))
-done
-
-# Oldest first: the grid reads like the iPhone Photos app, newest at the bottom.
-printf '%s\n' "${items[@]}" | jq -s 'sort_by(.ts)' > "$INDEX.tmp"
-mv "$INDEX.tmp" "$INDEX"
-
-# Drop cached thumbnails of items that fell outside the window.
-if [ "${#keep[@]}" -gt 0 ]; then
-  printf '%s\n' "${keep[@]}" | sort > "$CACHE/keep.txt"
-  for dir in "$THUMBS" "$PREVIEWS" "$VIDEOS"; do
-    find "$dir" -type f \( -name '*.jpg' -o -name '*.mp4' \) -printf '%f\n' | sed 's/\.[a-z0-9]*$//' | sort -u \
-      | comm -23 - "$CACHE/keep.txt" | while read -r stale; do rm -f "$dir/$stale.jpg" "$dir/$stale.mp4"; done
-  done
-fi
-
+build_index
 write_status ok "" "$count"
 echo "icloud-recent-sync: $count items in the last $DAYS days"

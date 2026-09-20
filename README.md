@@ -21,6 +21,27 @@
 
 > **Credit where it is due.** The syncing is done by [icloudpd](https://github.com/icloud-photos-downloader/icloud_photos_downloader), the iCloud Photos Downloader by the icloud-photos-downloader project. I did not write it and this repository does not fork it. What you find here is the window, the index, the sign-in and delete helper on top of its pyicloud module, and the glue between them.
 
+## Install
+
+The quickest way is to let your coding agent do it. Paste this into Claude Code, Codex or whatever runs your terminal:
+
+> Install Omarchy iCloud Photos from https://github.com/jankeesvw/omarchy-icloud-photos on this Omarchy machine. Install the pacman packages quickshell, imagemagick, ffmpeg, jq and wl-clipboard if they are missing. Clone the repository into ~/Documents/github.com/jankeesvw/omarchy-icloud-photos and run its install.sh; it needs no root and fetches icloudpd and a Python 3.13 itself. Then start `icloud-recent` and tell me it is ready for me to sign in; the sign-in happens inside the window and you never need my password. Do not run icloudpd with `--auto-delete` or `--keep-icloud-recent-days`, and do not change the config beyond what install.sh writes.
+
+<details>
+<summary>By hand</summary>
+
+```bash
+sudo pacman -S --needed quickshell imagemagick ffmpeg jq wl-clipboard
+git clone https://github.com/jankeesvw/omarchy-icloud-photos.git ~/Documents/github.com/jankeesvw/omarchy-icloud-photos
+~/Documents/github.com/jankeesvw/omarchy-icloud-photos/install.sh
+```
+
+The installer links the launcher and the sync script into `~/.local/bin`, adds "Omarchy iCloud Photos" to the app launcher, fetches the icloudpd binary into `~/.local/bin` when it is not installed already, creates a small Python virtualenv for the iCloud helper (a 3.13 from mise when the system Python is newer) and enables the sync timer. Nothing after the pacman line needs root.
+
+Then start `icloud-recent`, or pick "Omarchy iCloud Photos" in the launcher, and sign in. The first sync takes a few minutes; HDR videos take the longest because each one gets a tone-mapped copy for playback. Run `install.sh` again after a `git pull`; everything is linked, not copied.
+
+</details>
+
 ## Why
 
 Apple does not make an iCloud Photos client for Linux, and the web app is a browser tab that forgets who you are every few days. This is the other way round: a small sync script keeps a local copy of your most recent photos and videos, and a Quickshell window shows them the way the Photos app does, newest at the bottom, in whatever Omarchy theme you are running. Everything is a keystroke away and nothing needs a mouse.
@@ -54,24 +75,6 @@ The window is the only new thing here; the plumbing is existing, well-worn tools
 The sync can only download. icloudpd runs in its default copy mode, without `--auto-delete` or `--keep-icloud-recent-days`, and the local library is never pruned: shrink the range and files simply leave the grid. The one thing that writes to iCloud is `d`, which flips a single asset's `isDeleted` flag, exactly what the Photos app does when you tap the bin. There is no bulk delete and no way to empty Recently Deleted from here.
 
 It talks to iCloud through the same unofficial web API icloudpd uses. Apple can change that at any time, and Apple rate-limits sign-ins: a few attempts in a row get you a "temporarily refusing" answer that clears by itself after a while. When something breaks, the window says so.
-
-## Install
-
-```bash
-sudo pacman -S --needed quickshell imagemagick ffmpeg jq wl-clipboard
-git clone git@github.com:jankeesvw/omarchy-icloud-photos.git ~/Documents/github.com/jankeesvw/omarchy-icloud-photos
-~/Documents/github.com/jankeesvw/omarchy-icloud-photos/install.sh
-```
-
-The installer links the launcher and the sync script into `~/.local/bin`, adds "Omarchy iCloud Photos" to the app launcher, fetches the icloudpd binary into `~/.local/bin` when it is not installed already, creates a small Python virtualenv for the iCloud helper (a 3.13 from mise when the system Python is newer) and enables the sync timer. Nothing after the pacman line needs root.
-
-Then start `icloud-recent`, or pick "Omarchy iCloud Photos" in the launcher, and sign in. The first sync takes a few minutes; HDR videos take the longest because each one gets a tone-mapped copy for playback. Run `install.sh` again after a `git pull`; everything is linked, not copied.
-
-### Let an agent install it
-
-Paste this into Claude Code, Codex or whatever runs your terminal:
-
-> Install Omarchy iCloud Photos from https://github.com/jankeesvw/omarchy-icloud-photos on this Omarchy machine. Install the pacman packages quickshell, imagemagick, ffmpeg, jq and wl-clipboard if they are missing. Clone the repository into ~/Documents/github.com/jankeesvw/omarchy-icloud-photos and run its install.sh; it needs no root and fetches icloudpd and a Python 3.13 itself. Then start `icloud-recent` and tell me it is ready for me to sign in; the sign-in happens inside the window and you never need my password. Do not run icloudpd with `--auto-delete` or `--keep-icloud-recent-days`, and do not change the config beyond what install.sh writes.
 
 ## Keys
 
