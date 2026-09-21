@@ -163,7 +163,9 @@ Rectangle {
     anchors.top: parent.top
     anchors.right: parent.right
     anchors.margins: 24
-    width: infoColumn.implicitWidth + 36
+    // Narrow on purpose: long values (lens names) wrap instead of the panel
+    // spreading across the picture.
+    width: 340
     height: infoColumn.implicitHeight + 28
     radius: 10
     color: Qt.rgba(theme.darkBackground.r, theme.darkBackground.g, theme.darkBackground.b, 0.92)
@@ -173,7 +175,10 @@ Rectangle {
 
     Column {
       id: infoColumn
-      anchors.centerIn: parent
+      anchors.left: parent.left
+      anchors.right: parent.right
+      anchors.top: parent.top
+      anchors.margins: 14
       spacing: 6
       Text {
         visible: root.infoRows.length === 0
@@ -186,16 +191,19 @@ Rectangle {
         model: root.infoRows
         delegate: Row {
           required property var modelData
-          spacing: 14
+          width: infoColumn.width
+          spacing: 12
           Text {
-            width: 110
+            width: 96
             text: modelData[0]
             color: theme.darkForeground
             font.family: theme.fontFamily
             font.pixelSize: theme.fontSize
           }
           Text {
+            width: infoColumn.width - 96 - 12
             text: modelData[1]
+            wrapMode: Text.Wrap
             color: theme.brightForeground
             font.family: theme.fontFamily
             font.pixelSize: theme.fontSize
