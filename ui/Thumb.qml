@@ -31,8 +31,6 @@ Rectangle {
     sourceSize.width: 400
     sourceSize.height: 400
     smooth: true
-    layer.enabled: true
-    layer.effect: null
   }
 
   function fmtDuration(s) {

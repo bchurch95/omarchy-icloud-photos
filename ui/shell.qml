@@ -774,8 +774,10 @@ ShellRoot {
         else if (k === Qt.Key_Right || k === Qt.Key_L) root.move(1, shift)
         else if (k === Qt.Key_Down || k === Qt.Key_J) root.move(grid.columns, shift)
         else if (k === Qt.Key_Up || k === Qt.Key_K) root.move(-grid.columns, shift)
-        else if (t === "g") { root.jumpTo(root.items.length > 0 ? 0 : -1, false); }
-        else if (t === "G") { root.jumpTo(root.items.length - 1, false); root.pinBottom = true; grid.scrollToBottom(); }
+        else if (k === Qt.Key_PageDown) root.move(grid.columns * 3, shift)
+        else if (k === Qt.Key_PageUp) root.move(-grid.columns * 3, shift)
+        else if (k === Qt.Key_Home || t === "g") { root.jumpTo(root.items.length > 0 ? 0 : -1, false); }
+        else if (k === Qt.Key_End || t === "G") { root.jumpTo(root.items.length - 1, false); root.pinBottom = true; grid.scrollToBottom(); }
         else if (k === Qt.Key_Return || k === Qt.Key_Enter || k === Qt.Key_Space) { if (root.current) root.viewerOpen = true; }
         else if (t === "o") root.openCurrent()
         else if (t === "y") root.copyCurrent()
@@ -894,18 +896,57 @@ ShellRoot {
         contentWidth: width
         contentHeight: column.implicitHeight + 32
         boundsBehavior: Flickable.StopAtBounds
+        flickDeceleration: 750
+        maximumFlickVelocity: 4000
 
-        // Flickable turns wheel ticks into flicks with inertia, which feels
-        // like scrolling through syrup. Move the content directly instead:
-        // pixel deltas from a touchpad as they come, one wheel notch as a
-        // fixed step. Dragging with a finger still flicks.
+        NumberAnimation {
+          id: scrollAnim
+          target: grid
+          property: "contentY"
+          duration: 160
+          easing.type: Easing.OutCubic
+        }
+
+        // Smooth scrolling for discrete mouse wheel notches, while letting
+        // continuous touchpad gestures pass to Flickable for natural 1:1 glide and inertia.
         WheelHandler {
-          acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
+          id: wheelHandler
+          acceptedDevices: PointerDevice.Mouse
+          orientation: Qt.Vertical
           onWheel: event => {
-            var dy = event.pixelDelta.y !== 0 ? event.pixelDelta.y : event.angleDelta.y / 120 * 140;
-            grid.contentY = Math.max(0, Math.min(grid.contentHeight - grid.height, grid.contentY - dy));
+            if (event.pixelDelta.y !== 0) {
+              event.accepted = false;
+              return;
+            }
             root.pinBottom = false;
+            var ticks = event.angleDelta.y / 120;
+            var step = ticks * Math.max(140, root.cell * 0.85);
+            var currentTarget = scrollAnim.running ? scrollAnim.to : grid.contentY;
+            var targetY = Math.max(0, Math.min(grid.contentHeight - grid.height, currentTarget - step));
+            scrollAnim.stop();
+            scrollAnim.from = grid.contentY;
+            scrollAnim.to = targetY;
+            scrollAnim.start();
             event.accepted = true;
+          }
+        }
+
+        ScrollBar.vertical: ScrollBar {
+          id: vbar
+          anchors.right: parent.right
+          anchors.rightMargin: 3
+          anchors.top: parent.top
+          anchors.bottom: parent.bottom
+          policy: ScrollBar.AsNeeded
+          hoverEnabled: true
+          active: pressed || hovered || grid.moving || grid.flicking || scrollAnim.running
+          contentItem: Rectangle {
+            implicitWidth: vbar.hovered || vbar.pressed ? 8 : 5
+            radius: width / 2
+            color: vbar.pressed ? appTheme.accent : (vbar.hovered ? appTheme.brightForeground : appTheme.lighterBackground)
+            opacity: vbar.active ? 0.8 : 0.0
+            Behavior on opacity { NumberAnimation { duration: 250 } }
+            Behavior on implicitWidth { NumberAnimation { duration: 150 } }
           }
         }
 
@@ -923,15 +964,25 @@ ShellRoot {
           else if (restoreY >= 0) contentY = clampY(restoreY);
         }
         onHeightChanged: if (root.pinBottom) scrollToBottom()
-        onMovementStarted: root.pinBottom = false
+        onMovementStarted: {
+          root.pinBottom = false;
+          scrollAnim.stop();
+        }
 
         function reveal(thumb) {
           if (root.pinBottom || root.suppressReveal) return;
           var p = thumb.mapToItem(grid.contentItem, 0, 0);
           var top = p.y - 44;      // keep the day label in view when moving up
           var bottom = p.y + thumb.height + 16;
-          if (top < contentY) contentY = Math.max(0, top);
-          else if (bottom > contentY + height) contentY = Math.min(contentHeight - height, bottom - height);
+          var target = contentY;
+          if (top < contentY) target = Math.max(0, top);
+          else if (bottom > contentY + height) target = Math.min(contentHeight - height, bottom - height);
+          if (target !== contentY) {
+            scrollAnim.stop();
+            scrollAnim.from = grid.contentY;
+            scrollAnim.to = target;
+            scrollAnim.start();
+          }
         }
 
         Column {
