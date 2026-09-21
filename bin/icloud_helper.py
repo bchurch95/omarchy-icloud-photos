@@ -164,7 +164,14 @@ def cmd_login(args, cfg):
     except PyiCloudException as e:
         fail(f"Apple did not accept the login: {e}")
     if api.requires_2fa:
-        api.trigger_push_notification()
+        # Ask Apple to push a code to the trusted devices. Apple usually pushes
+        # one on the sign-in itself already, and this endpoint answers 503 at
+        # times; pyicloud only swallows API errors, not that one, so guard it
+        # here. Without the guard a working sign-in looked rate-limited.
+        try:
+            api.trigger_push_notification()
+        except PyiCloudException as e:
+            print(f"push notification not sent: {e}", file=sys.stderr)
         emit({"step": "2fa"})
         code = sys.stdin.readline().strip()
         if not (len(code) == 6 and code.isdigit()):
