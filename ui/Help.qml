@@ -35,7 +35,8 @@ Rectangle {
     { title: "Viewer", keys: [
       ["h l  j k", "previous, next"],
       ["scroll", "previous, next"],
-      ["space", "pause or resume a video, toggle a Live Photo"],
+      ["space", "pause or resume a video, play a Live Photo once"],
+      ["hover the circle", "play a Live Photo once"],
       ["←  →", "seek 5 seconds"],
       ["esc  q", "back to the grid"]
     ]}

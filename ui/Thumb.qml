@@ -71,22 +71,41 @@ Rectangle {
     }
   }
 
-  Rectangle {
+  // Live Photo mark, the same circle the phone shows top-left.
+  Row {
     visible: item && item.kind === "live"
     anchors.left: parent.left
     anchors.top: parent.top
     anchors.margins: 8
-    width: 38
-    height: 18
-    radius: 4
-    color: Qt.rgba(0, 0, 0, 0.6)
-    Text {
-      anchors.centerIn: parent
-      text: "LIVE"
-      color: "white"
-      font.family: theme.fontFamily
-      font.pixelSize: 10
-      font.bold: true
+    spacing: 5
+    Rectangle {
+      width: 22; height: 22; radius: 11
+      color: Qt.rgba(0, 0, 0, 0.6)
+      border.color: Qt.rgba(1, 1, 1, 0.8)
+      border.width: 1
+      Text {
+        anchors.centerIn: parent
+        text: "\uf192"
+        color: "white"
+        font.family: theme.fontFamily
+        font.pixelSize: 11
+      }
+    }
+    Rectangle {
+      anchors.verticalCenter: parent.verticalCenter
+      width: liveText.implicitWidth + 10
+      height: 18
+      radius: 4
+      color: Qt.rgba(0, 0, 0, 0.6)
+      Text {
+        id: liveText
+        anchors.centerIn: parent
+        text: "LIVE"
+        color: "white"
+        font.family: theme.fontFamily
+        font.pixelSize: 10
+        font.bold: true
+      }
     }
   }
 

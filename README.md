@@ -54,7 +54,7 @@ Apple does not make an iCloud Photos client for Linux, and the web app is a brow
 ## What it does
 
 - **Grid by day.** Photos, videos and Live Photos from the last week, month or whatever range you pick, grouped by day with the newest at the bottom. Thumbnails scale with a slider.
-- **Viewer.** Full-window stills, video with a timeline you can scrub, Live Photos that play on Space. iPhone videos are HDR and most Linux players show them washed out; here they look right.
+- **Viewer.** Full-window stills, video with a timeline you can scrub, Live Photos that play once when you hover the little circle, like on the phone. iPhone videos are HDR and most Linux players show them washed out; here they look right.
 - **Delete with undo.** `d` moves an item, or a selection, to iCloud's Recently Deleted, the same 30-day bin the Photos app uses. Undo brings it back, from the toast or with `u`. Nothing here can empty that bin.
 - **Copy and save.** `y` puts the image on the clipboard, or a file list when several are selected. `s` and the Download button save a copy to `~/Downloads` as JPEG or MP4, whatever the original was. Clicking the filename copies its full path.
 - **Signs in by itself.** Apple ID, password and the two-factor code go into the window on first run and whenever the session expires. The password is only used to open the session and is never stored.
@@ -90,7 +90,7 @@ Press `?` in the app for this list.
 | `Shift` + move, shift-click | select a range | |
 | `Ctrl` + click, `x`, `Ctrl` + `Space` | add or remove one | |
 | `Ctrl` + `a` | select all | |
-| `Enter`, `Space` | open the viewer | pause or resume, toggle a Live Photo |
+| `Enter`, `Space` | open the viewer | pause or resume a video, play a Live Photo once |
 | `←` / `→` | move | seek 5 seconds |
 | `d` / `u` | delete, undo | same |
 | `y` / `Y` | copy image or files, copy path | same |

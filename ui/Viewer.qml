@@ -29,14 +29,21 @@ Rectangle {
     videoShown = item !== null && item.kind === "video";
   }
 
-  // Space: pause or resume a video, show or hide a Live Photo's clip.
+  // Space: pause or resume a video; for a Live Photo, play the clip once.
   function togglePlay() {
     if (!hasVideo) return;
     if (item.kind === "live") {
-      videoShown = !videoShown;
+      playLive();
       return;
     }
     if (playing) video.pause(); else video.play();
+  }
+
+  // The moving half of a Live Photo plays once and the still comes back,
+  // like pressing the picture on the phone.
+  function playLive() {
+    if (!item || item.kind !== "live" || videoShown) return;
+    videoShown = true;
   }
 
   function seekBy(ms) {
@@ -72,7 +79,7 @@ Rectangle {
     id: frame
     anchors.fill: parent
     anchors.margins: 12
-    anchors.bottomMargin: root.videoShown ? 56 + 44 : 56
+    anchors.bottomMargin: (root.videoShown && item && item.kind === "video") ? 56 + 44 : 56
   }
 
   Image {
@@ -103,9 +110,11 @@ Rectangle {
     anchors.fill: frame
     source: (root.videoShown && item && item.video) ? "file://" + item.video : ""
     fillMode: VideoOutput.PreserveAspectFit
-    loops: MediaPlayer.Infinite
+    loops: (item && item.kind === "live") ? 1 : MediaPlayer.Infinite
     visible: root.videoShown
     onSourceChanged: if (source != "") play()
+    // A Live Photo clip ends by itself: back to the still.
+    onStopped: if (item && item.kind === "live") root.videoShown = false
 
     // Click the picture to pause or resume.
     MouseArea {
@@ -114,10 +123,88 @@ Rectangle {
     }
   }
 
+  // ---- Live Photo button ---------------------------------------------------
+  // A small round button on the picture, like the phone has: tap to play the
+  // moving half, tap again to go back to the still. Space does the same.
+  Rectangle {
+    visible: item !== null && item.kind === "live"
+    anchors.left: frame.left
+    anchors.bottom: frame.bottom
+    anchors.margins: 16
+    width: 40; height: 40; radius: 20
+    color: root.videoShown ? theme.accent : Qt.rgba(0, 0, 0, 0.55)
+    border.color: root.videoShown ? theme.accent : Qt.rgba(1, 1, 1, 0.6)
+    border.width: 1.5
+    Text {
+      anchors.centerIn: parent
+      text: "\uf192"
+      color: root.videoShown ? theme.darkerBackground : "white"
+      font.family: theme.fontFamily
+      font.pixelSize: 17
+    }
+    MouseArea {
+      anchors.fill: parent
+      hoverEnabled: true
+      cursorShape: Qt.PointingHandCursor
+      onClicked: root.togglePlay()
+    }
+    Text {
+      anchors.left: parent.right
+      anchors.leftMargin: 10
+      anchors.verticalCenter: parent.verticalCenter
+      text: "LIVE"
+      color: "white"
+      font.family: theme.fontFamily
+      font.pixelSize: 11
+      font.bold: true
+      style: Text.Outline
+      styleColor: Qt.rgba(0, 0, 0, 0.7)
+    }
+  }
+
+  // ---- Live Photo button ---------------------------------------------------
+  // The small round button on the picture: move the pointer over it and the
+  // clip plays once, then the still is back. Space does the same.
+  Rectangle {
+    visible: item !== null && item.kind === "live"
+    anchors.left: frame.left
+    anchors.bottom: frame.bottom
+    anchors.margins: 16
+    width: 36; height: 36; radius: 18
+    color: root.videoShown ? theme.accent : Qt.rgba(0, 0, 0, 0.55)
+    border.color: root.videoShown ? theme.accent : Qt.rgba(1, 1, 1, 0.7)
+    border.width: 1.5
+    Text {
+      anchors.centerIn: parent
+      text: "\uf192"
+      color: root.videoShown ? theme.darkerBackground : "white"
+      font.family: theme.fontFamily
+      font.pixelSize: 16
+    }
+    MouseArea {
+      anchors.fill: parent
+      hoverEnabled: true
+      onEntered: root.playLive()
+      onClicked: root.playLive()
+    }
+    Text {
+      anchors.left: parent.right
+      anchors.leftMargin: 8
+      anchors.verticalCenter: parent.verticalCenter
+      text: "LIVE"
+      color: "white"
+      font.family: theme.fontFamily
+      font.pixelSize: 11
+      font.bold: true
+      style: Text.Outline
+      styleColor: Qt.rgba(0, 0, 0, 0.7)
+    }
+  }
+
   // ---- Scrubber ----------------------------------------------------------
   Rectangle {
     id: scrubber
-    visible: root.videoShown
+    visible: root.videoShown && item && item.kind === "video"
     anchors.left: parent.left
     anchors.right: parent.right
     anchors.bottom: caption.top
