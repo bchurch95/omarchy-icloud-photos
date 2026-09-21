@@ -10,6 +10,7 @@
 # An iCloud Shared Library the account takes part in is pulled as well, into
 # LIBRARY/shared, and its items carry a person mark in the grid.
 set -euo pipefail
+umask 077
 
 CONFIG="${XDG_CONFIG_HOME:-$HOME/.config}/omarchy-icloud-photos/config"
 [ -f "$CONFIG" ] && . "$CONFIG"
