@@ -755,9 +755,9 @@ ShellRoot {
           if (t === "i") root.toggleInfo()
           else if ((k === Qt.Key_Escape || t === "q") && root.infoOpen) root.infoOpen = false
           else if (k === Qt.Key_Escape || t === "q" || k === Qt.Key_Backspace) root.viewerOpen = false
-          // Arrows scrub while a video is on screen; h/l always move on.
-          else if (k === Qt.Key_Left && viewer.videoShown) viewer.seekBy(-5000)
-          else if (k === Qt.Key_Right && viewer.videoShown) viewer.seekBy(5000)
+          // Shift+Arrows scrub video; plain arrows navigate to previous/next photo or video
+          else if (shift && k === Qt.Key_Left && viewer.videoShown) viewer.seekBy(-5000)
+          else if (shift && k === Qt.Key_Right && viewer.videoShown) viewer.seekBy(5000)
           else if (k === Qt.Key_Left || t === "h" || t === "k" || k === Qt.Key_Up) root.move(-1)
           else if (k === Qt.Key_Right || t === "l" || t === "j" || k === Qt.Key_Down) root.move(1)
           else if (k === Qt.Key_Space) viewer.togglePlay()
