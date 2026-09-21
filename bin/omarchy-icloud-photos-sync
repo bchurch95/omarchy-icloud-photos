@@ -13,11 +13,11 @@ CONFIG="${XDG_CONFIG_HOME:-$HOME/.config}/omarchy-icloud-photos/config"
 
 : "${APPLE_ID:?Set APPLE_ID in $CONFIG}"
 : "${LIBRARY:=$HOME/Pictures/iCloud}"
-: "${DAYS:=7}"
+: "${DAYS:=30}"
 # Upper bound on how many of the newest assets icloudpd walks per run. The
 # date filter is applied per item, so without this bound every run would page
 # through the whole library.
-: "${RECENT_LIMIT:=500}"
+: "${RECENT_LIMIT:=2000}"
 : "${COOKIES:=${XDG_CONFIG_HOME:-$HOME/.config}/icloudpd}"
 : "${CACHE:=${XDG_CACHE_HOME:-$HOME/.cache}/omarchy-icloud-photos}"
 : "${THUMB_SIZE:=400}"

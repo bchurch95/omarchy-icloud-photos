@@ -4,7 +4,7 @@
 
 <h1 align="center">Omarchy iCloud Photos</h1>
 
-<p align="center">Your iCloud Photos library as a native window on <a href="https://omarchy.org">Omarchy</a>.<br>Browse by day, watch your videos, delete with undo, copy and save. No browser tab, no Apple hardware.</p>
+<p align="center">The last month of your iCloud Photos library as a native window on <a href="https://omarchy.org">Omarchy</a>.<br>Browse by day, watch your videos, delete with undo, copy and save. No browser tab, no Apple hardware.</p>
 
 <p align="center">
   <a href="LICENSE"><img alt="MIT" src="https://img.shields.io/badge/license-MIT-blue?style=flat-square"></a>
@@ -45,13 +45,13 @@ Then start `omarchy-icloud-photos`, or pick "Omarchy iCloud Photos" in the launc
 
 ## Why
 
-Apple does not make an iCloud Photos client for Linux, and the web app is a browser tab that forgets who you are every few days. This is the other way round: a small sync script keeps a local copy of your most recent photos and videos, and a Quickshell window shows them the way the Photos app does, newest at the bottom, in whatever Omarchy theme you are running. Everything is a keystroke away and nothing needs a mouse.
+Apple does not make an iCloud Photos client for Linux, and the web app is a browser tab that forgets who you are every few days. This is the other way round: a small sync script keeps a local copy of your last month of photos and videos, and a Quickshell window shows them the way the Photos app does, newest at the bottom, in whatever Omarchy theme you are running. Everything is a keystroke away and nothing needs a mouse.
 
 ![The grid: a week of photos and videos grouped by day, in the Tokyo Night theme](assets/screenshot.jpg)
 
 ## What it does
 
-- **Grid by day.** Photos, videos and Live Photos from the last week, month or whatever range you pick, grouped by day with the newest at the bottom. Thumbnails scale with a slider.
+- **Grid by day.** The last month of photos, videos and Live Photos, grouped by day with the newest at the bottom. Thumbnails scale with a slider.
 - **Viewer.** Full-window stills, video with a timeline you can scrub, Live Photos that play once when you hover the little circle, like on the phone. `i` shows camera, lens, shutter, ISO, size and location. iPhone videos are HDR and most Linux players show them washed out; here they look right.
 - **Delete with undo.** `d` moves an item, or a selection, to iCloud's Recently Deleted, the same 30-day bin the Photos app uses. Undo brings it back, from the toast or with `u`. Nothing here can empty that bin.
 - **Copy and save.** `y` puts the image on the clipboard, or a file list when several are selected. `s` and the Download button save a copy to `~/Downloads` as JPEG or MP4, whatever the original was. Clicking the filename copies its full path.
@@ -135,13 +135,11 @@ A click selects, a second click on the selected item opens it. Hovering does not
 |---|---|---|
 | `APPLE_ID` | set by the sign-in card | The account to sync |
 | `LIBRARY` | `~/Pictures/iCloud` | Where originals land, as `YYYY/MM/` folders |
-| `DAYS` | `7` | How far back the grid goes. The header says "last week", "last month" and so on |
-| `RECENT_LIMIT` | `500` | Newest assets icloudpd walks per run. Raise it with `DAYS`; 2000 covers a month comfortably |
 | `COOKIES` | `~/.config/icloudpd` | Where the iCloud session lives |
 | `CACHE` | `~/.cache/omarchy-icloud-photos` | Thumbnails, previews, SDR video copies and the index |
 | `LAUNCHER_NAME` | `Omarchy iCloud Photos` | What the app is called in the launcher; re-run `install.sh` after changing it |
 
-Changing `DAYS` never deletes anything: a smaller range only trims the cache, a larger one downloads what is missing on the next sync. "Everything" is not an option yet; the grid is not built for tens of thousands of items.
+The window covers the last month. That is a deliberate size: enough to matter, small enough that the grid stays quick and a first sync takes minutes rather than hours. The local library is never pruned, so nothing on disk goes away when the month moves on.
 
 The same session also works from the command line, for a headless box or when you prefer a terminal:
 
@@ -151,11 +149,11 @@ icloudpd --auth-only --username you@example.com --cookie-directory ~/.config/icl
 
 ## Demo mode
 
-`omarchy-icloud-photos --demo` starts the window on a stand-in library built from the Omarchy theme backgrounds: photos, portrait crops, a few slow-pan videos and Live Photo pairs, spread over the last week. It lives under `~/.cache/omarchy-icloud-photos-demo`, apart from your real config and cache, and nothing in it talks to iCloud, so delete and undo can be tried freely. That is what the screenshots are made with. `omarchy-icloud-photos-demo --reset` rebuilds it, and `omarchy-icloud-photos --demo --tour` scrolls through the grid by itself and opens a photo, for recording a clip.
+`omarchy-icloud-photos --demo` starts the window on a stand-in library built from the Omarchy theme backgrounds: photos, portrait crops, a few slow-pan videos and Live Photo pairs, spread over the last days. It lives under `~/.cache/omarchy-icloud-photos-demo`, apart from your real config and cache, and nothing in it talks to iCloud, so delete and undo can be tried freely. That is what the screenshots are made with. `omarchy-icloud-photos-demo --reset` rebuilds it, and `omarchy-icloud-photos --demo --tour` scrolls through the grid by itself and opens a photo, for recording a clip.
 
 ## How it works
 
-`bin/omarchy-icloud-photos-sync` runs icloudpd for the newest items, then indexes every file in the library newer than `DAYS`. Capture time is the file's mtime, which icloudpd sets to the asset's creation date. Each item gets a 400 px thumbnail; HEIC also gets a 2200 px JPEG preview because Qt cannot decode HEIC. A Live Photo's `_HEVC.MOV` companion folds into its still. HDR videos get a tone-mapped H.264 copy for playback; the original stays untouched and is what `o`, `s` and `Y` refer to. The result is `index.json` and `status.json` in the cache; the window watches both.
+`bin/omarchy-icloud-photos-sync` runs icloudpd for the newest items, then indexes every file in the library from the last month. Capture time is the file's mtime, which icloudpd sets to the asset's creation date. Each item gets a 400 px thumbnail; HEIC also gets a 2200 px JPEG preview because Qt cannot decode HEIC. A Live Photo's `_HEVC.MOV` companion folds into its still. HDR videos get a tone-mapped H.264 copy for playback; the original stays untouched and is what `o`, `s` and `Y` refer to. The result is `index.json` and `status.json` in the cache; the window watches both.
 
 `bin/icloud_helper.py` is the only code that talks to iCloud beyond downloading: it signs in, and it moves one asset at a time to Recently Deleted or back. It runs on the pyicloud module that ships with icloudpd, in the repository's own virtualenv.
 

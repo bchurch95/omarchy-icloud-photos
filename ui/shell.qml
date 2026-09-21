@@ -44,7 +44,7 @@ ShellRoot {
   property bool indexMissing: false
   // Apple ID from the config file; empty until the first sign-in.
   property string appleId: ""
-  property int rangeDays: 7
+  property int rangeDays: 30
   property bool configLoaded: false
   // The sign-in card shows on first run and whenever the session has expired.
   readonly property bool needLogin: configLoaded && (appleId === "" || status.state === "auth-required")
@@ -297,7 +297,7 @@ ShellRoot {
 
   function parseDays(raw) {
     var m = String(raw || "").match(/^\s*DAYS=["']?(\d+)/m);
-    return m ? parseInt(m[1]) : 7;
+    return m ? parseInt(m[1]) : 30;
   }
 
   function rangeLabel() {

@@ -59,7 +59,6 @@ if [ ! -f "$config/omarchy-icloud-photos/config" ]; then
 # omarchy-icloud-photos configuration, sourced by omarchy-icloud-photos-sync
 # APPLE_ID is filled in by the sign-in card in the app.
 LIBRARY=\$HOME/Pictures/iCloud
-DAYS=7
 CFG
   echo "Start omarchy-icloud-photos and sign in with your Apple ID."
 fi
@@ -81,7 +80,7 @@ if [ ! -x "$here/.venv/bin/python" ]; then
   fi
   [ -n "$py" ] && python_ok "$py" || { echo "need a python between 3.10 and 3.13 for the iCloud helper (mise install python@3.13)" >&2; exit 1; }
   "$py" -m venv "$here/.venv"
-  "$here/.venv/bin/pip" install -q "git+https://github.com/icloud-photos-downloader/icloud_photos_downloader@v$ICLOUDPD_VERSION"
+  "$here/.venv/bin/pip" install -q "git+https://github.com/icloud-photos-downloader/icloud_photos_downloader@v$ICLOUDPD_VERSION" piexif
 fi
 
 update-desktop-database "$HOME/.local/share/applications" 2>/dev/null || true

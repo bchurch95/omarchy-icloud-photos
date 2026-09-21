@@ -14,7 +14,7 @@ LIBRARY="$DEMO_HOME/library"
 XDG_CACHE="$DEMO_HOME/xdg-cache"
 XDG_CONFIG="$DEMO_HOME/xdg-config"
 CONFIG="$XDG_CONFIG/omarchy-icloud-photos/config"
-DAYS=7
+DAYS=30
 
 if [ "${1:-}" = "--print-env" ]; then
   echo "XDG_CACHE_HOME=$XDG_CACHE XDG_CONFIG_HOME=$XDG_CONFIG"
@@ -55,6 +55,33 @@ else
   # A crop of a plain wallpaper is just a grey square; skip those.
   flat() { [ "$(magick "$1" -colorspace Gray -format '%[fx:standard_deviation<0.06?1:0]' info:)" = 1 ]; }
 
+  # Give a demo photo the EXIF an iPhone would, so the details panel has
+  # something to show. Uses piexif from the helper's virtualenv.
+  tag() {
+    local py="$(dirname "$(readlink -f "$0")")/../.venv/bin/python"
+    [ -x "$py" ] || return 0
+    "$py" - "$1" "$2" <<'PY' 2>/dev/null || true
+import sys, piexif, random
+path, seed = sys.argv[1], int(sys.argv[2])
+r = random.Random(seed)
+lens = r.choice([("iPhone 16 Pro back triple camera 6.765mm f/1.78", (6765, 1000), (178, 100), 24),
+                 ("iPhone 16 Pro back triple camera 2.22mm f/2.2", (222, 100), (22, 10), 13),
+                 ("iPhone 16 Pro back triple camera 15.66mm f/2.8", (1566, 100), (28, 10), 120)])
+shutter = r.choice([(1, 60), (1, 120), (1, 250), (1, 500), (1, 1000), (1, 30)])
+iso = r.choice([32, 50, 64, 100, 200, 400, 800])
+exif = {
+    "0th": {piexif.ImageIFD.Make: b"Apple", piexif.ImageIFD.Model: b"iPhone 16 Pro", piexif.ImageIFD.Software: b"18.6"},
+    "Exif": {piexif.ExifIFD.LensModel: lens[0].encode(), piexif.ExifIFD.FocalLength: lens[1],
+             piexif.ExifIFD.FocalLengthIn35mmFilm: lens[3], piexif.ExifIFD.FNumber: lens[2],
+             piexif.ExifIFD.ExposureTime: shutter, piexif.ExifIFD.ISOSpeedRatings: iso,
+             piexif.ExifIFD.DateTimeOriginal: b"2026:09:14 10:23:55"},
+    "GPS": {piexif.GPSIFD.GPSLatitudeRef: b"N", piexif.GPSIFD.GPSLatitude: ((51, 1), (24, 1), (36, 100)),
+            piexif.GPSIFD.GPSLongitudeRef: b"E", piexif.GPSIFD.GPSLongitude: ((5, 1), (54, 1), (5870, 100))},
+}
+piexif.insert(piexif.dump(exif), path)
+PY
+  }
+
   place() {
     # place SRC-FILE -> moves it into YYYY/MM with a capture time in the window
     local src="$1" ts day dir
@@ -74,13 +101,14 @@ else
     # The full picture as a photo…
     magick "$src" -resize '2400x2400>' -quality 90 "$tmp/IMG_$n.JPG"
     if flat "$tmp/IMG_$n.JPG"; then rm -f "$tmp/IMG_$n.JPG"; continue; fi
+    tag "$tmp/IMG_$n.JPG" "$n"
     place "$tmp/IMG_$n.JPG"
 
     # …and a portrait crop of it as a second, phone-shaped photo.
     n=$((n + 1))
     magick "$src" -gravity "$( (( i % 3 == 0 )) && echo West || (( i % 3 == 1 )) && echo Center || echo East)" \
       -crop 9:16 +repage -resize '1600x1600>' -quality 90 "$tmp/IMG_$n.JPG"
-    if flat "$tmp/IMG_$n.JPG"; then rm -f "$tmp/IMG_$n.JPG"; else place "$tmp/IMG_$n.JPG"; fi
+    if flat "$tmp/IMG_$n.JPG"; then rm -f "$tmp/IMG_$n.JPG"; else tag "$tmp/IMG_$n.JPG" "$n"; place "$tmp/IMG_$n.JPG"; fi
 
     # Every fourth source becomes a short video with a slow pan.
     if (( i % 4 == 0 )); then
@@ -95,6 +123,7 @@ else
     if (( i % 5 == 2 )); then
       n=$((n + 1))
       magick "$src" -gravity Center -crop 3:4 +repage -resize '1600x1600>' -quality 90 "$tmp/IMG_$n.JPG"
+      tag "$tmp/IMG_$n.JPG" "$n"
       ffmpeg -v error -y -loop 1 -i "$tmp/IMG_$n.JPG" -t 2 -r 30 \
         -vf "scale=1080:1440:force_original_aspect_ratio=increase,crop=1080:1440,zoompan=z='1.0+0.003*on':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=60:s=1080x1440:fps=30,format=yuv420p" \
         -c:v libx264 -preset veryfast -crf 24 -movflags +faststart "$tmp/IMG_${n}_HEVC.MOV"
