@@ -38,9 +38,7 @@ git clone https://github.com/jankeesvw/omarchy-icloud-photos.git ~/Documents/git
 
 The installer links the launcher and the sync script into `~/.local/bin`, adds "Omarchy iCloud Photos" to the app launcher, fetches the icloudpd binary into `~/.local/bin` when it is not installed already, creates a small Python virtualenv for the iCloud helper (a 3.13 from mise when the system Python is newer) and enables the sync timer. Nothing after the pacman line needs root.
 
-Then start `omarchy-icloud-photos`, or pick "Omarchy iCloud Photos" in the launcher, and sign in. Apple ID and password first, then the six-digit code from your phone:
-
-![The sign-in card asking for the verification code](assets/signin.jpg)
+Then start `omarchy-icloud-photos`, or pick "Omarchy iCloud Photos" in the launcher, and sign in. Apple ID and password first, then the six-digit code from your phone.
  The first sync takes a few minutes; HDR videos take the longest because each one gets a tone-mapped copy for playback. Run `install.sh` again after a `git pull`; everything is linked, not copied.
 
 </details>
@@ -64,18 +62,26 @@ Apple does not make an iCloud Photos client for Linux, and the web app is a brow
 
 ## A look around
 
+Every picture here is the whole window, taken from the demo library.
+
 <table>
 <tr>
-<td width="50%"><img src="assets/details.jpg" alt="The viewer with the details panel: camera, lens, focal length, aperture, shutter, ISO, size, location"><br><sub><code>i</code> in the viewer: camera, lens, shutter, ISO, size and location.</sub></td>
-<td width="50%"><img src="assets/video.jpg" alt="A video in the viewer with the timeline underneath"><br><sub>Video with a timeline to scrub. HDR from the phone plays with the right colours.</sub></td>
+<td width="50%"><img src="assets/live.jpg" alt="A Live Photo in the viewer, the ring top-left lit while the clip plays"><br><sub>A Live Photo: hover the ring top-left and the clip plays once.</sub></td>
+<td width="50%"><img src="assets/details.jpg" alt="The viewer with the details panel open"><br><sub><code>i</code>: camera, lens, shutter, ISO, size and location. Demo pictures carry no EXIF, so this one shows only size and file.</sub></td>
 </tr>
 <tr>
-<td><img src="assets/delete.jpg" alt="The delete dialog for a selection of five items"><br><sub><code>d</code> on a selection: the five go to Recently Deleted, one Undo brings them all back.</sub></td>
+<td><img src="assets/delete.jpg" alt="The delete dialog over the grid"><br><sub><code>d</code> asks first, with the picture in the dialog.</sub></td>
+<td><img src="assets/undo.jpg" alt="The grid with the toast offering Undo after a delete"><br><sub>Then it is gone, with an Undo button for twelve seconds and <code>u</code> after that.</sub></td>
+</tr>
+<tr>
+<td><img src="assets/select.jpg" alt="A range of tiles ticked in the grid"><br><sub>Shift selects a range, ctrl-click or <code>x</code> ticks one more; <code>y</code>, <code>s</code> and <code>d</code> then act on all of them.</sub></td>
 <td><img src="assets/keys.jpg" alt="The keyboard overlay"><br><sub><code>?</code> lists every key.</sub></td>
 </tr>
+<tr>
+<td><img src="assets/video.jpg" alt="A video in the viewer with the timeline underneath"><br><sub>Video with a timeline to scrub. HDR from the phone plays with the right colours.</sub></td>
+<td><img src="assets/signin.jpg" alt="The sign-in card asking for the verification code"><br><sub>Sign-in lives in the window: Apple ID, password, then the six-digit code.</sub></td>
+</tr>
 </table>
-
-<img src="assets/select.jpg" alt="Three tiles ticked in the grid"><br><sub>Shift-click or shift with the movement keys selects a range, ctrl-click or <code>x</code> ticks one more. The ring with the dot marks a Live Photo.</sub>
 
 ## Built on
 

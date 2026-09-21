@@ -683,6 +683,17 @@ ShellRoot {
     PauseAnimation { duration: 2200 }
     ScriptAction { script: root.undoDelete() }
     PauseAnimation { duration: 2000 }
+    // A range selection, then the keys overlay.
+    ScriptAction { script: {
+      var n = root.items.length;
+      root.jumpTo(Math.max(0, n - 9), false);
+      root.jumpTo(Math.max(0, n - 4), true);
+    } }
+    PauseAnimation { duration: 2200 }
+    ScriptAction { script: { root.clearChecked(); root.helpOpen = true; } }
+    PauseAnimation { duration: 2600 }
+    ScriptAction { script: root.helpOpen = false }
+    PauseAnimation { duration: 800 }
   }
 
   Timer {
