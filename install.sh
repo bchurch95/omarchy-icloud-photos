@@ -34,6 +34,9 @@ fi
 if [ -d "$cache/icloud-recent" ] && [ ! -d "$cache/omarchy-icloud-photos" ]; then
   mv "$cache/icloud-recent" "$cache/omarchy-icloud-photos"
 fi
+if [ -d "$cache/icloud-recent-demo" ] && [ ! -d "$cache/omarchy-icloud-photos-demo" ]; then
+  mv "$cache/icloud-recent-demo" "$cache/omarchy-icloud-photos-demo"
+fi
 if [ -e "$config/systemd/user/icloud-recent-sync.timer" ]; then
   systemctl --user disable --now icloud-recent-sync.timer 2>/dev/null || true
   rm -f "$config/systemd/user/icloud-recent-sync.timer" "$config/systemd/user/icloud-recent-sync.service"
