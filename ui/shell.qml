@@ -938,10 +938,10 @@ ShellRoot {
             }
 
             grid.contentY = newY;
-            // Frame-rate independent exponential friction decay (~0.93 per 16ms)
-            wheelHandler.velocity *= Math.pow(0.93, dtSec / 0.016);
+            // Low-friction exponential decay (~0.965 per 16ms) for long, effortless glide
+            wheelHandler.velocity *= Math.pow(0.965, dtSec / 0.016);
 
-            if (Math.abs(wheelHandler.velocity) < 30) {
+            if (Math.abs(wheelHandler.velocity) < 15) {
               wheelHandler.velocity = 0;
               stop();
             }
@@ -983,24 +983,24 @@ ShellRoot {
             lastEventTime = now;
 
             if (event.pixelDelta.y !== 0) {
-              // Touchpad event with pixel delta: 1:1 responsive movement scaled for desktop
+              // Touchpad event with pixel delta: fast 4.5x multiplier for brisk coverage
               momentumTimer.stop();
-              var dy = event.pixelDelta.y * 2.4;
+              var dy = event.pixelDelta.y * 4.5;
               grid.contentY = Math.max(0, Math.min(grid.contentHeight - grid.height, grid.contentY - dy));
 
               // Compute velocity in pixels per second with moving average
               var instVel = (dy / dt) * 1000;
-              wheelHandler.velocity = Math.max(-9000, Math.min(9000, wheelHandler.velocity * 0.3 + instVel * 0.7));
+              wheelHandler.velocity = Math.max(-18000, Math.min(18000, wheelHandler.velocity * 0.3 + instVel * 0.7));
 
               releaseTimer.restart();
               event.accepted = true;
               return;
             }
 
-            // Mouse wheel event (discrete angle delta notches): impart smooth glide impulse
+            // Mouse wheel event: strong 3600 px/s impulse per notch
             var ticks = event.angleDelta.y / 120;
-            var impulse = ticks * 2000;
-            wheelHandler.velocity = Math.max(-9000, Math.min(9000, (wheelHandler.velocity * 0.25) + impulse));
+            var impulse = ticks * 3600;
+            wheelHandler.velocity = Math.max(-18000, Math.min(18000, (wheelHandler.velocity * 0.25) + impulse));
             momentumTimer.start();
             event.accepted = true;
           }
