@@ -132,22 +132,15 @@ Rectangle {
     x: still.x + (still.width - still.paintedWidth) / 2 + 14
     y: still.y + (still.height + still.paintedHeight) / 2 - height - 14
     spacing: 8
+    // One ring with a dot, in whole pixels so nothing lands on a half pixel.
     Rectangle {
-      width: 36; height: 36; radius: 18
-      color: root.videoShown ? theme.accent : Qt.rgba(0, 0, 0, 0.55)
-      border.color: root.videoShown ? theme.accent : Qt.rgba(1, 1, 1, 0.7)
-      border.width: 1.5
-      // Ring and dot drawn as shapes: a font glyph never sits dead centre.
+      width: 32; height: 32; radius: 16
+      color: root.videoShown ? theme.accent : Qt.rgba(0, 0, 0, 0.5)
+      border.color: root.videoShown ? theme.accent : "white"
+      border.width: 2
       Rectangle {
-        anchors.centerIn: parent
-        width: 18; height: 18; radius: 9
-        color: "transparent"
-        border.width: 1.5
-        border.color: root.videoShown ? theme.darkerBackground : "white"
-      }
-      Rectangle {
-        anchors.centerIn: parent
-        width: 7; height: 7; radius: 3.5
+        x: 11; y: 11
+        width: 10; height: 10; radius: 5
         color: root.videoShown ? theme.darkerBackground : "white"
       }
       MouseArea {

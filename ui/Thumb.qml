@@ -79,20 +79,13 @@ Rectangle {
     anchors.margins: 8
     spacing: 5
     Rectangle {
-      width: 22; height: 22; radius: 11
-      color: Qt.rgba(0, 0, 0, 0.6)
-      border.color: Qt.rgba(1, 1, 1, 0.8)
-      border.width: 1
+      width: 20; height: 20; radius: 10
+      color: Qt.rgba(0, 0, 0, 0.5)
+      border.color: "white"
+      border.width: 2
       Rectangle {
-        anchors.centerIn: parent
-        width: 11; height: 11; radius: 5.5
-        color: "transparent"
-        border.width: 1
-        border.color: "white"
-      }
-      Rectangle {
-        anchors.centerIn: parent
-        width: 4; height: 4; radius: 2
+        x: 7; y: 7
+        width: 6; height: 6; radius: 3
         color: "white"
       }
     }
