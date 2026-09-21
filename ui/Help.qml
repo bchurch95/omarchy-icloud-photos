@@ -38,6 +38,7 @@ Rectangle {
       ["space", "pause or resume a video, play a Live Photo once"],
       ["hover the circle", "play a Live Photo once"],
       ["←  →", "seek 5 seconds"],
+      ["i", "camera and file details"],
       ["esc  q", "back to the grid"]
     ]}
   ]

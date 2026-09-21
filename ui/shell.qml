@@ -18,6 +18,7 @@ ShellRoot {
   readonly property string binDir: Quickshell.shellDir + "/../bin"
   readonly property string syncScript: binDir + "/omarchy-icloud-photos-sync"
   readonly property string helperScript: binDir + "/omarchy-icloud-photos-helper"
+  readonly property string infoScript: binDir + "/omarchy-icloud-photos-info"
   readonly property string configPath:
     (Quickshell.env("XDG_CONFIG_HOME") || (Quickshell.env("HOME") + "/.config")) + "/omarchy-icloud-photos/config"
 
@@ -35,6 +36,10 @@ ShellRoot {
   property int anchor: -1
   property bool viewerOpen: false
   property bool helpOpen: false
+  // Details panel in the viewer (`i`): rows for the item it was fetched for.
+  property bool infoOpen: false
+  property var infoRows: []
+  property string infoForId: ""
   property var status: ({ state: "unknown", message: "", at: "" })
   property bool indexMissing: false
   // Apple ID from the config file; empty until the first sign-in.
@@ -182,6 +187,18 @@ ShellRoot {
   }
 
   Process { id: opener }
+  Process {
+    id: infoProc
+    property string forId: ""
+    stdout: StdioCollector {
+      onStreamFinished: {
+        var rows = [];
+        try { rows = JSON.parse(text); } catch (e) {}
+        root.infoRows = rows;
+        root.infoForId = infoProc.forId;
+      }
+    }
+  }
   Process {
     id: wallpaper
     stdout: StdioCollector {
@@ -445,6 +462,24 @@ ShellRoot {
     wallpaper.running = true;
   }
 
+  // `i` in the viewer: camera and file details for the current item.
+  function toggleInfo() {
+    infoOpen = !infoOpen;
+    if (infoOpen) fetchInfo();
+  }
+
+  function fetchInfo() {
+    if (!current || infoProc.running) return;
+    if (infoForId === current.id) return;
+    infoRows = [];
+    infoProc.forId = current.id;
+    infoProc.command = [root.infoScript, current.kind === "video" ? current.path : current.path];
+    infoProc.running = true;
+  }
+
+  onCurrentChanged: if (infoOpen && viewerOpen) fetchInfo()
+  onViewerOpenChanged: if (!viewerOpen) infoOpen = false
+
   function copyPath() {
     var list = targets();
     if (list.length === 0) return;
@@ -685,7 +720,9 @@ ShellRoot {
           event.accepted = true; return;
         }
         if (root.viewerOpen) {
-          if (k === Qt.Key_Escape || t === "q" || k === Qt.Key_Backspace) root.viewerOpen = false
+          if (t === "i") root.toggleInfo()
+          else if ((k === Qt.Key_Escape || t === "q") && root.infoOpen) root.infoOpen = false
+          else if (k === Qt.Key_Escape || t === "q" || k === Qt.Key_Backspace) root.viewerOpen = false
           // Arrows scrub while a video is on screen; h/l always move on.
           else if (k === Qt.Key_Left && viewer.videoShown) viewer.seekBy(-5000)
           else if (k === Qt.Key_Right && viewer.videoShown) viewer.seekBy(5000)
@@ -1072,6 +1109,9 @@ ShellRoot {
         anchors.fill: parent
         theme: appTheme
         item: root.viewerOpen ? root.current : null
+        infoOpen: root.infoOpen
+        infoRows: (root.current && root.infoForId === root.current.id) ? root.infoRows : []
+        onRequestInfo: root.toggleInfo()
         onRequestNext: root.move(1)
         onRequestPrev: root.move(-1)
         onRequestCopyPath: root.copyPath()

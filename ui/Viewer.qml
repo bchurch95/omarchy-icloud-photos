@@ -20,6 +20,11 @@ Rectangle {
   signal requestPrev()
   signal requestCopyPath()
   signal requestSave()
+  signal requestInfo()
+
+  // Details panel: rows of [label, value] from the info script.
+  property bool infoOpen: false
+  property var infoRows: []
 
   color: theme.darkerBackground
   visible: item !== null
@@ -148,6 +153,54 @@ Rectangle {
         hoverEnabled: true
         onEntered: root.playLive()
         onClicked: root.playLive()
+      }
+    }
+  }
+
+  // ---- Details panel (i) ---------------------------------------------------
+  Rectangle {
+    visible: root.infoOpen
+    anchors.top: parent.top
+    anchors.right: parent.right
+    anchors.margins: 24
+    width: infoColumn.implicitWidth + 36
+    height: infoColumn.implicitHeight + 28
+    radius: 10
+    color: Qt.rgba(theme.darkBackground.r, theme.darkBackground.g, theme.darkBackground.b, 0.92)
+    border.color: theme.lighterBackground
+    border.width: 1
+    MouseArea { anchors.fill: parent; hoverEnabled: true }
+
+    Column {
+      id: infoColumn
+      anchors.centerIn: parent
+      spacing: 6
+      Text {
+        visible: root.infoRows.length === 0
+        text: "Reading…"
+        color: theme.darkForeground
+        font.family: theme.fontFamily
+        font.pixelSize: theme.fontSize
+      }
+      Repeater {
+        model: root.infoRows
+        delegate: Row {
+          required property var modelData
+          spacing: 14
+          Text {
+            width: 110
+            text: modelData[0]
+            color: theme.darkForeground
+            font.family: theme.fontFamily
+            font.pixelSize: theme.fontSize
+          }
+          Text {
+            text: modelData[1]
+            color: theme.brightForeground
+            font.family: theme.fontFamily
+            font.pixelSize: theme.fontSize
+          }
+        }
       }
     }
   }
@@ -300,6 +353,30 @@ Rectangle {
       anchors.rightMargin: 12
       anchors.verticalCenter: parent.verticalCenter
       spacing: 10
+
+      // Details toggle, same as the i key.
+      Rectangle {
+        anchors.verticalCenter: parent.verticalCenter
+        width: 28; height: 28; radius: 6
+        color: root.infoOpen ? theme.lighterBackground : (infoArea.containsMouse ? theme.lighterBackground : "transparent")
+        border.color: theme.lighterBackground
+        border.width: 1
+        Text {
+          anchors.centerIn: parent
+          text: "i"
+          color: theme.foreground
+          font.family: theme.fontFamily
+          font.pixelSize: theme.fontSize
+          font.bold: true
+        }
+        MouseArea {
+          id: infoArea
+          anchors.fill: parent
+          hoverEnabled: true
+          cursorShape: Qt.PointingHandCursor
+          onClicked: root.requestInfo()
+        }
+      }
 
       // Download: a copy of the original lands in ~/Downloads.
       Rectangle {

@@ -1,0 +1,86 @@
+#!/usr/bin/env bash
+# omarchy-icloud-photos-info FILE: camera and file details as JSON rows
+# [[label, value], ...] for the viewer's info panel (the `i` key).
+#
+# Photos come from EXIF via ImageMagick, videos from ffprobe. Values are
+# formatted here so the panel only has to print them.
+set -euo pipefail
+f="${1:?file}"
+[ -f "$f" ] || { echo '[]'; exit 0; }
+
+rows=()
+add() { [ -n "${2:-}" ] && rows+=("$(jq -cn --arg l "$1" --arg v "$2" '[$l, $v]')"); return 0; }
+
+# rational "a/b" -> decimal with N digits, or the value as is
+rat() {
+  local v="$1" digits="${2:-1}"
+  case "$v" in
+    */*) awk -v a="${v%%/*}" -v b="${v##*/}" -v d="$digits" 'BEGIN { if (b == 0) exit; printf "%.*f", d, a / b }' ;;
+    *) printf '%s' "$v" ;;
+  esac
+}
+# exposure rational -> "1/120 s" or "2.5 s"
+shutter() {
+  local v="$1"
+  case "$v" in
+    */*) awk -v a="${v%%/*}" -v b="${v##*/}" 'BEGIN {
+           if (a == 0 || b == 0) exit;
+           t = a / b;
+           if (t >= 1) printf "%.1f s", t; else printf "1/%d s", int(b / a + 0.5) }' ;;
+    "") ;;
+    *) printf '%s s' "$v" ;;
+  esac
+}
+# GPS "d/1, m/1, s/100" + ref -> decimal degrees
+gps() {
+  local v="$1" ref="$2"
+  [ -n "$v" ] || return 0
+  awk -v s="$v" -v r="$ref" 'BEGIN {
+    n = split(s, p, /, */); if (n < 3) exit;
+    for (i = 1; i <= 3; i++) { split(p[i], q, "/"); val[i] = (q[2] == 0 || q[2] == "") ? q[1] : q[1] / q[2] }
+    d = val[1] + val[2] / 60 + val[3] / 3600;
+    if (r == "S" || r == "W") d = -d;
+    printf "%.5f", d }'
+}
+human() { numfmt --to=iec --suffix=B --format='%.1f' "$1" 2>/dev/null | sed 's/\.0B/ B/; s/B$/B/'; }
+
+case "${f,,}" in
+  *.mov|*.mp4|*.m4v)
+    j=$(ffprobe -v error -show_entries format=duration,size:format_tags=com.apple.quicktime.make,com.apple.quicktime.model,com.apple.quicktime.location.ISO6709,creation_time:stream=codec_name,width,height,r_frame_rate,color_transfer,codec_type,bit_rate -of json "$f")
+    make=$(jq -r '.format.tags["com.apple.quicktime.make"] // ""' <<<"$j")
+    model=$(jq -r '.format.tags["com.apple.quicktime.model"] // ""' <<<"$j")
+    add "Camera" "$(printf '%s %s' "$make" "$model" | sed 's/^ //; s/ $//')"
+    w=$(jq -r '[.streams[] | select(.codec_type=="video")][0].width // ""' <<<"$j")
+    h=$(jq -r '[.streams[] | select(.codec_type=="video")][0].height // ""' <<<"$j")
+    [ -n "$w" ] && add "Size" "${w} × ${h}"
+    fps=$(jq -r '[.streams[] | select(.codec_type=="video")][0].r_frame_rate // ""' <<<"$j")
+    [ -n "$fps" ] && add "Frame rate" "$(rat "$fps" 0) fps"
+    dur=$(jq -r '.format.duration // ""' <<<"$j")
+    [ -n "$dur" ] && add "Duration" "$(awk -v d="$dur" 'BEGIN { m = int(d / 60); s = d - m * 60; printf "%d:%05.2f", m, s }')"
+    codec=$(jq -r '[.streams[] | select(.codec_type=="video")][0].codec_name // ""' <<<"$j")
+    trc=$(jq -r '[.streams[] | select(.codec_type=="video")][0].color_transfer // ""' <<<"$j")
+    case "$trc" in arib-std-b67) hdr="HDR (HLG)" ;; smpte2084) hdr="HDR (PQ)" ;; *) hdr="SDR" ;; esac
+    add "Codec" "$(printf '%s, %s' "${codec^^}" "$hdr" | sed 's/^, //')"
+    loc=$(jq -r '.format.tags["com.apple.quicktime.location.ISO6709"] // ""' <<<"$j")
+    [ -n "$loc" ] && add "Location" "$(sed -E 's/^([+-][0-9.]+)([+-][0-9.]+).*/\1 \2/' <<<"$loc" | awk '{ printf "%.5f, %.5f", $1, $2 }')"
+    ;;
+  *)
+    # read returns 1 at end of input, which set -e must not turn into an exit
+    IFS='|' read -r make model lens focal focal35 fnum exp iso1 iso2 dto lat latref lon lonref w h bias < <(
+      magick identify -quiet -format '%[EXIF:Make]|%[EXIF:Model]|%[EXIF:LensModel]|%[EXIF:FocalLength]|%[EXIF:FocalLengthIn35mmFilm]|%[EXIF:FNumber]|%[EXIF:ExposureTime]|%[EXIF:ISOSpeedRatings]|%[EXIF:PhotographicSensitivity]|%[EXIF:DateTimeOriginal]|%[EXIF:GPSLatitude]|%[EXIF:GPSLatitudeRef]|%[EXIF:GPSLongitude]|%[EXIF:GPSLongitudeRef]|%w|%h|%[EXIF:ExposureBiasValue]\n' "$f[0]" 2>/dev/null || true) || true
+    add "Camera" "$(printf '%s %s' "${make:-}" "${model:-}" | sed 's/^ //; s/ $//')"
+    add "Lens" "${lens:-}"
+    fl=""; [ -n "${focal:-}" ] && fl="$(rat "$focal" 1) mm"
+    [ -n "${focal35:-}" ] && [ -n "$fl" ] && fl="$fl (${focal35} mm equiv.)"
+    add "Focal length" "$fl"
+    [ -n "${fnum:-}" ] && add "Aperture" "f/$(rat "$fnum" 1)"
+    add "Shutter" "$(shutter "${exp:-}")"
+    add "ISO" "${iso1:-${iso2:-}}"
+    if [ -n "${bias:-}" ]; then b=$(rat "$bias" 1); [ "$b" != "0.0" ] && add "Exposure bias" "$b EV"; fi
+    [ -n "${w:-}" ] && add "Size" "${w} × ${h}"
+    if [ -n "${lat:-}" ] && [ -n "${lon:-}" ]; then add "Location" "$(gps "$lat" "$latref"), $(gps "$lon" "$lonref")"; fi
+    ;;
+esac
+add "File" "$(basename "$f")  ·  $(human "$(stat -c %s "$f")")"
+
+if [ "${#rows[@]}" -eq 0 ]; then echo '[]'; else printf '%s\n' "${rows[@]}" | jq -cs .; fi
