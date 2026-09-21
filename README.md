@@ -62,6 +62,21 @@ Apple does not make an iCloud Photos client for Linux, and the web app is a brow
 - **Stays in sync.** A systemd user timer pulls new items every 30 minutes. An open window picks them up on its own.
 - **Follows your theme.** Colours come live from Omarchy's `colors.toml`; switch themes and the window switches with you.
 
+## A look around
+
+<table>
+<tr>
+<td width="50%"><img src="assets/details.jpg" alt="The viewer with the details panel: camera, lens, focal length, aperture, shutter, ISO, size, location"><br><sub><code>i</code> in the viewer: camera, lens, shutter, ISO, size and location.</sub></td>
+<td width="50%"><img src="assets/video.jpg" alt="A video in the viewer with the timeline underneath"><br><sub>Video with a timeline to scrub. HDR from the phone plays with the right colours.</sub></td>
+</tr>
+<tr>
+<td><img src="assets/delete.jpg" alt="The delete dialog for a selection of five items"><br><sub><code>d</code> on a selection: the five go to Recently Deleted, one Undo brings them all back.</sub></td>
+<td><img src="assets/keys.jpg" alt="The keyboard overlay"><br><sub><code>?</code> lists every key.</sub></td>
+</tr>
+</table>
+
+<img src="assets/select.jpg" alt="Three tiles ticked in the grid"><br><sub>Shift-click or shift with the movement keys selects a range, ctrl-click or <code>x</code> ticks one more. The ring with the dot marks a Live Photo.</sub>
+
 ## Built on
 
 The window is the only new thing here; the plumbing is existing, well-worn tools by other people.
