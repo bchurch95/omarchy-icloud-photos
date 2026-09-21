@@ -3,30 +3,30 @@ import QtQuick.Controls.Basic
 import Quickshell
 import Quickshell.Io
 
-// icloud-recent: the last week of an iCloud Photos library in one window.
+// omarchy-icloud-photos: the last week of an iCloud Photos library in one window.
 //
-// All data comes from bin/icloud-recent-sync, which writes index.json and
-// status.json under ~/.cache/icloud-recent. This file only renders them and
+// All data comes from bin/omarchy-icloud-photos-sync, which writes index.json and
+// status.json under ~/.cache/omarchy-icloud-photos. This file only renders them and
 // can ask the script to run again. Nothing here writes to the library.
 ShellRoot {
   id: root
 
   readonly property string cacheDir:
-    (Quickshell.env("XDG_CACHE_HOME") || (Quickshell.env("HOME") + "/.cache")) + "/icloud-recent"
+    (Quickshell.env("XDG_CACHE_HOME") || (Quickshell.env("HOME") + "/.cache")) + "/omarchy-icloud-photos"
   // Qt.resolvedUrl refuses to leave the shell directory (it returns
   // qrc:/qs-blackhole), so the scripts are found from shellDir instead.
   readonly property string binDir: Quickshell.shellDir + "/../bin"
-  readonly property string syncScript: binDir + "/icloud-recent-sync"
-  readonly property string helperScript: binDir + "/icloud-recent-helper"
+  readonly property string syncScript: binDir + "/omarchy-icloud-photos-sync"
+  readonly property string helperScript: binDir + "/omarchy-icloud-photos-helper"
   readonly property string configPath:
-    (Quickshell.env("XDG_CONFIG_HOME") || (Quickshell.env("HOME") + "/.config")) + "/icloud-recent/config"
+    (Quickshell.env("XDG_CONFIG_HOME") || (Quickshell.env("HOME") + "/.config")) + "/omarchy-icloud-photos/config"
 
   property var items: []
   property var days: []          // [{label, indices: [int]}]
   property int selected: -1
-  // ICLOUD_RECENT_TOUR=1: scroll the grid from top to bottom by itself and
+  // OMARCHY_ICLOUD_PHOTOS_TOUR=1: scroll the grid from top to bottom by itself and
   // open one photo at the end. Used to record the demo video.
-  readonly property bool tour: Quickshell.env("ICLOUD_RECENT_TOUR") === "1"
+  readonly property bool tour: Quickshell.env("OMARCHY_ICLOUD_PHOTOS_TOUR") === "1"
   property bool tourStarted: false
   // Multi-selection: ids of the checked items and the index where a shift
   // range starts. The cursor (`selected`) always counts as selected too.
@@ -642,8 +642,8 @@ ShellRoot {
     id: win
     visible: true
     // A suffix from the environment lets a window rule single out a capture
-    // instance (see icloud-recent --demo --tour).
-    title: "Omarchy iCloud Photos" + (Quickshell.env("ICLOUD_RECENT_TITLE_SUFFIX") || "")
+    // instance (see omarchy-icloud-photos --demo --tour).
+    title: "Omarchy iCloud Photos" + (Quickshell.env("OMARCHY_ICLOUD_PHOTOS_TITLE_SUFFIX") || "")
     implicitWidth: 1180
     implicitHeight: 800
     color: appTheme.background

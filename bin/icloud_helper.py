@@ -23,6 +23,7 @@ non-zero on failure.
 
 import argparse
 import json
+import logging
 import os
 import shutil
 import sys
@@ -37,8 +38,8 @@ from pyicloud_ipd.exceptions import (
     PyiCloudServiceUnavailableException,
 )
 
-CONFIG = Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config")) / "icloud-recent" / "config"
-CACHE = Path(os.environ.get("XDG_CACHE_HOME", Path.home() / ".cache")) / "icloud-recent"
+CONFIG = Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config")) / "omarchy-icloud-photos" / "config"
+CACHE = Path(os.environ.get("XDG_CACHE_HOME", Path.home() / ".cache")) / "omarchy-icloud-photos"
 WALK_LIMIT = 600  # newest assets to inspect when looking for a filename
 TS_TOLERANCE = 180  # seconds between local mtime and iCloud capture time
 
@@ -61,7 +62,7 @@ def save_apple_id(apple_id):
     """Set APPLE_ID in the config file, keeping every other line as it is."""
     CONFIG.parent.mkdir(parents=True, exist_ok=True)
     lines = CONFIG.read_text().splitlines() if CONFIG.exists() else [
-        "# icloud-recent configuration, sourced by icloud-recent-sync",
+        "# omarchy-icloud-photos configuration, sourced by omarchy-icloud-photos-sync",
         "LIBRARY=$HOME/Pictures/iCloud",
         "DAYS=7",
     ]
@@ -81,6 +82,7 @@ def emit(obj):
 
 
 def fail(message, **extra):
+    logging.getLogger().error("fail: %s %s", message, extra if extra else "")
     print(json.dumps({"ok": False, "error": message, **extra}))
     sys.exit(1)
 
@@ -156,6 +158,7 @@ def cmd_login(args, cfg):
     except PyiCloudFailedLoginException:
         fail("Wrong Apple ID or password")
     except PyiCloudServiceUnavailableException:
+        logging.getLogger().exception("503 during authenticate")
         # HTTP 503 from Apple: their rate limit after a few sign-ins in a row.
         fail("Apple is holding off sign-ins for a while (too many attempts in a row). "
              "Wait fifteen minutes or so and try again; retrying sooner extends the wait.")
@@ -250,6 +253,12 @@ def cmd_restore(args, cfg):
 
 
 def main():
+    # Everything pyicloud says goes to <cache>/helper.log so a failed sign-in
+    # can be understood afterwards. Passwords are masked by pyicloud itself.
+    CACHE.mkdir(parents=True, exist_ok=True)
+    logging.basicConfig(filename=CACHE / "helper.log", level=logging.DEBUG,
+                        format="%(asctime)s %(levelname)s %(name)s: %(message)s")
+    logging.getLogger().info("helper %s", " ".join(sys.argv[1:]))
     p = argparse.ArgumentParser()
     sub = p.add_subparsers(dest="cmd", required=True)
     l = sub.add_parser("login"); l.add_argument("--username", required=True); l.add_argument("--save-config", action="store_true")

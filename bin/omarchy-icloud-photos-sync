@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
-# icloud-recent-sync: pull the most recent days of an iCloud Photos library
-# into a local folder and build a thumbnail index for the icloud-recent viewer.
+# omarchy-icloud-photos-sync: pull the most recent days of an iCloud Photos library
+# into a local folder and build a thumbnail index for the omarchy-icloud-photos viewer.
 #
 # Safety: icloudpd runs in its default copy mode. This script never passes
-# --auto-delete or --keep-icloud-recent-days, so nothing is ever removed from
+# --auto-delete or --keep-omarchy-icloud-photos-days, so nothing is ever removed from
 # iCloud or from the local library. The library only grows; the viewer simply
 # shows the last DAYS days of it.
 set -euo pipefail
 
-CONFIG="${XDG_CONFIG_HOME:-$HOME/.config}/icloud-recent/config"
+CONFIG="${XDG_CONFIG_HOME:-$HOME/.config}/omarchy-icloud-photos/config"
 [ -f "$CONFIG" ] && . "$CONFIG"
 
 : "${APPLE_ID:?Set APPLE_ID in $CONFIG}"
@@ -19,7 +19,7 @@ CONFIG="${XDG_CONFIG_HOME:-$HOME/.config}/icloud-recent/config"
 # through the whole library.
 : "${RECENT_LIMIT:=500}"
 : "${COOKIES:=${XDG_CONFIG_HOME:-$HOME/.config}/icloudpd}"
-: "${CACHE:=${XDG_CACHE_HOME:-$HOME/.cache}/icloud-recent}"
+: "${CACHE:=${XDG_CACHE_HOME:-$HOME/.cache}/omarchy-icloud-photos}"
 : "${THUMB_SIZE:=400}"
 : "${PREVIEW_SIZE:=2200}"
 
@@ -42,18 +42,18 @@ write_status() {
 # One run at a time; a second invocation just leaves.
 exec 9>"$CACHE/lock"
 if ! flock -n 9; then
-  echo "icloud-recent-sync: already running" >&2
+  echo "omarchy-icloud-photos-sync: already running" >&2
   exit 0
 fi
 
 skip_download=0
-# A demo library (see icloud-recent-demo) has nothing to download.
+# A demo library (see omarchy-icloud-photos-demo) has nothing to download.
 [ "${DEMO:-0}" = 1 ] && skip_download=1
 for arg in "$@"; do
   case "$arg" in
     --index-only) skip_download=1 ;;
     -h|--help)
-      echo "usage: icloud-recent-sync [--index-only]"
+      echo "usage: omarchy-icloud-photos-sync [--index-only]"
       exit 0 ;;
   esac
 done
@@ -253,4 +253,4 @@ build_index quick
 write_status indexing "Converting HDR videos" "$count"
 build_index
 write_status ok "" "$count"
-echo "icloud-recent-sync: $count items in the last $DAYS days"
+echo "omarchy-icloud-photos-sync: $count items in the last $DAYS days"

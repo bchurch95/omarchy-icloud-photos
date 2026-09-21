@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Launch the icloud-recent viewer. Quickshell runs the QML next to this script,
+# Launch the omarchy-icloud-photos viewer. Quickshell runs the QML next to this script,
 # so the app works from wherever the repository is checked out.
 set -euo pipefail
 dir="$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)"
@@ -8,12 +8,12 @@ dir="$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)"
 # apart from the real config and cache. Good for screenshots.
 if [ "${1:-}" = "--demo" ]; then
   shift
-  "$dir/bin/icloud-recent-demo" >&2
-  eval "export $("$dir/bin/icloud-recent-demo" --print-env)"
+  "$dir/bin/omarchy-icloud-photos-demo" >&2
+  eval "export $("$dir/bin/omarchy-icloud-photos-demo" --print-env)"
   # --tour: scroll through the grid by itself, for recording.
   if [ "${1:-}" = "--tour" ]; then
     shift
-    export ICLOUD_RECENT_TOUR=1
+    export OMARCHY_ICLOUD_PHOTOS_TOUR=1
   fi
 fi
 exec quickshell -p "$dir/ui/shell.qml" "$@"

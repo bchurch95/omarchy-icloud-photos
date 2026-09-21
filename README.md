@@ -25,7 +25,7 @@
 
 The quickest way is to let your coding agent do it. Paste this into Claude Code, Codex or whatever runs your terminal:
 
-> Install Omarchy iCloud Photos from https://github.com/jankeesvw/omarchy-icloud-photos on this Omarchy machine. Install the pacman packages quickshell, imagemagick, ffmpeg, jq and wl-clipboard if they are missing. Clone the repository into ~/Documents/github.com/jankeesvw/omarchy-icloud-photos and run its install.sh; it needs no root and fetches icloudpd and a Python 3.13 itself. Then start `icloud-recent` and tell me it is ready for me to sign in; the sign-in happens inside the window and you never need my password. Do not run icloudpd with `--auto-delete` or `--keep-icloud-recent-days`, and do not change the config beyond what install.sh writes.
+> Install Omarchy iCloud Photos from https://github.com/jankeesvw/omarchy-icloud-photos on this Omarchy machine. Install the pacman packages quickshell, imagemagick, ffmpeg, jq and wl-clipboard if they are missing. Clone the repository into ~/Documents/github.com/jankeesvw/omarchy-icloud-photos and run its install.sh; it needs no root and fetches icloudpd and a Python 3.13 itself. Then start `omarchy-icloud-photos` and tell me it is ready for me to sign in; the sign-in happens inside the window and you never need my password. Do not run icloudpd with `--auto-delete` or `--keep-omarchy-icloud-photos-days`, and do not change the config beyond what install.sh writes.
 
 <details>
 <summary>By hand</summary>
@@ -38,7 +38,7 @@ git clone https://github.com/jankeesvw/omarchy-icloud-photos.git ~/Documents/git
 
 The installer links the launcher and the sync script into `~/.local/bin`, adds "Omarchy iCloud Photos" to the app launcher, fetches the icloudpd binary into `~/.local/bin` when it is not installed already, creates a small Python virtualenv for the iCloud helper (a 3.13 from mise when the system Python is newer) and enables the sync timer. Nothing after the pacman line needs root.
 
-Then start `icloud-recent`, or pick "Omarchy iCloud Photos" in the launcher, and sign in. The first sync takes a few minutes; HDR videos take the longest because each one gets a tone-mapped copy for playback. Run `install.sh` again after a `git pull`; everything is linked, not copied.
+Then start `omarchy-icloud-photos`, or pick "Omarchy iCloud Photos" in the launcher, and sign in. The first sync takes a few minutes; HDR videos take the longest because each one gets a tone-mapped copy for playback. Run `install.sh` again after a `git pull`; everything is linked, not copied.
 
 </details>
 
@@ -73,7 +73,7 @@ The window is the only new thing here; the plumbing is existing, well-worn tools
 
 ## Safety first
 
-The sync can only download. icloudpd runs in its default copy mode, without `--auto-delete` or `--keep-icloud-recent-days`, and the local library is never pruned: shrink the range and files simply leave the grid. The one thing that writes to iCloud is `d`, which flips a single asset's `isDeleted` flag, exactly what the Photos app does when you tap the bin. There is no bulk delete and no way to empty Recently Deleted from here.
+The sync can only download. icloudpd runs in its default copy mode, without `--auto-delete` or `--keep-omarchy-icloud-photos-days`, and the local library is never pruned: shrink the range and files simply leave the grid. The one thing that writes to iCloud is `d`, which flips a single asset's `isDeleted` flag, exactly what the Photos app does when you tap the bin. There is no bulk delete and no way to empty Recently Deleted from here.
 
 It talks to iCloud through the same unofficial web API icloudpd uses. Apple can change that at any time, and Apple rate-limits sign-ins: a few attempts in a row get you a "temporarily refusing" answer that clears by itself after a while. When something breaks, the window says so.
 
@@ -104,7 +104,7 @@ A click selects, a second click on the selected item opens it. Hovering does not
 
 ## Configuration
 
-`~/.config/icloud-recent/config` is sourced by the sync script.
+`~/.config/omarchy-icloud-photos/config` is sourced by the sync script.
 
 | Variable | Default | Meaning |
 |---|---|---|
@@ -113,7 +113,7 @@ A click selects, a second click on the selected item opens it. Hovering does not
 | `DAYS` | `7` | How far back the grid goes. The header says "last week", "last month" and so on |
 | `RECENT_LIMIT` | `500` | Newest assets icloudpd walks per run. Raise it with `DAYS`; 2000 covers a month comfortably |
 | `COOKIES` | `~/.config/icloudpd` | Where the iCloud session lives |
-| `CACHE` | `~/.cache/icloud-recent` | Thumbnails, previews, SDR video copies and the index |
+| `CACHE` | `~/.cache/omarchy-icloud-photos` | Thumbnails, previews, SDR video copies and the index |
 | `LAUNCHER_NAME` | `Omarchy iCloud Photos` | What the app is called in the launcher; re-run `install.sh` after changing it |
 
 Changing `DAYS` never deletes anything: a smaller range only trims the cache, a larger one downloads what is missing on the next sync. "Everything" is not an option yet; the grid is not built for tens of thousands of items.
@@ -126,19 +126,19 @@ icloudpd --auth-only --username you@example.com --cookie-directory ~/.config/icl
 
 ## Demo mode
 
-`icloud-recent --demo` starts the window on a stand-in library built from the Omarchy theme backgrounds: photos, portrait crops, a few slow-pan videos and Live Photo pairs, spread over the last week. It lives under `~/.cache/icloud-recent-demo`, apart from your real config and cache, and nothing in it talks to iCloud, so delete and undo can be tried freely. That is what the screenshots are made with. `icloud-recent-demo --reset` rebuilds it, and `icloud-recent --demo --tour` scrolls through the grid by itself and opens a photo, for recording a clip.
+`omarchy-icloud-photos --demo` starts the window on a stand-in library built from the Omarchy theme backgrounds: photos, portrait crops, a few slow-pan videos and Live Photo pairs, spread over the last week. It lives under `~/.cache/omarchy-icloud-photos-demo`, apart from your real config and cache, and nothing in it talks to iCloud, so delete and undo can be tried freely. That is what the screenshots are made with. `omarchy-icloud-photos-demo --reset` rebuilds it, and `omarchy-icloud-photos --demo --tour` scrolls through the grid by itself and opens a photo, for recording a clip.
 
 ## How it works
 
-`bin/icloud-recent-sync` runs icloudpd for the newest items, then indexes every file in the library newer than `DAYS`. Capture time is the file's mtime, which icloudpd sets to the asset's creation date. Each item gets a 400 px thumbnail; HEIC also gets a 2200 px JPEG preview because Qt cannot decode HEIC. A Live Photo's `_HEVC.MOV` companion folds into its still. HDR videos get a tone-mapped H.264 copy for playback; the original stays untouched and is what `o`, `s` and `Y` refer to. The result is `index.json` and `status.json` in the cache; the window watches both.
+`bin/omarchy-icloud-photos-sync` runs icloudpd for the newest items, then indexes every file in the library newer than `DAYS`. Capture time is the file's mtime, which icloudpd sets to the asset's creation date. Each item gets a 400 px thumbnail; HEIC also gets a 2200 px JPEG preview because Qt cannot decode HEIC. A Live Photo's `_HEVC.MOV` companion folds into its still. HDR videos get a tone-mapped H.264 copy for playback; the original stays untouched and is what `o`, `s` and `Y` refer to. The result is `index.json` and `status.json` in the cache; the window watches both.
 
 `bin/icloud_helper.py` is the only code that talks to iCloud beyond downloading: it signs in, and it moves one asset at a time to Recently Deleted or back. It runs on the pyicloud module that ships with icloudpd, in the repository's own virtualenv.
 
 ```
-bin/icloud-recent          launcher: quickshell -p ui/shell.qml (--demo, --tour)
-bin/icloud-recent-sync     download + index, safe to run any time
-bin/icloud-recent-demo     builds the demo library from the theme backgrounds
-bin/icloud-recent-helper   wrapper that runs icloud_helper.py in .venv
+bin/omarchy-icloud-photos          launcher: quickshell -p ui/shell.qml (--demo, --tour)
+bin/omarchy-icloud-photos-sync     download + index, safe to run any time
+bin/omarchy-icloud-photos-demo     builds the demo library from the theme backgrounds
+bin/omarchy-icloud-photos-helper   wrapper that runs icloud_helper.py in .venv
 bin/icloud_helper.py       login, and find / delete / restore one asset
 ui/shell.qml               window, grid, key handling
 ui/Thumb.qml               one grid cell
@@ -153,7 +153,7 @@ install.sh                 links everything into place
 
 ## Contributing
 
-Issues and pull requests are welcome. Run `icloud-recent --demo` to work on the window without an Apple account; the demo library exercises photos, videos and Live Photos. Keep the safety rules: the sync stays in copy mode, and nothing deletes more than the one item the user pointed at.
+Issues and pull requests are welcome. Run `omarchy-icloud-photos --demo` to work on the window without an Apple account; the demo library exercises photos, videos and Live Photos. Keep the safety rules: the sync stays in copy mode, and nothing deletes more than the one item the user pointed at.
 
 ## License
 

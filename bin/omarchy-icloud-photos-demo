@@ -1,19 +1,19 @@
 #!/usr/bin/env bash
-# icloud-recent-demo: build a stand-in library out of the Omarchy theme
+# omarchy-icloud-photos-demo: build a stand-in library out of the Omarchy theme
 # backgrounds, for screenshots and for trying the app without an account.
 #
-# Everything lives under <cache>/icloud-recent-demo: a library of "photos"
+# Everything lives under <cache>/omarchy-icloud-photos-demo: a library of "photos"
 # with capture times spread over the last days, a few short videos and Live
 # Photo pairs rendered with ffmpeg, and a config with DEMO=1 so the sync
-# script only indexes and the helper never talks to iCloud. `icloud-recent
+# script only indexes and the helper never talks to iCloud. `omarchy-icloud-photos
 # --demo` runs this once and then starts the window against it.
 set -euo pipefail
 
-DEMO_HOME="${XDG_CACHE_HOME:-$HOME/.cache}/icloud-recent-demo"
+DEMO_HOME="${XDG_CACHE_HOME:-$HOME/.cache}/omarchy-icloud-photos-demo"
 LIBRARY="$DEMO_HOME/library"
 XDG_CACHE="$DEMO_HOME/xdg-cache"
 XDG_CONFIG="$DEMO_HOME/xdg-config"
-CONFIG="$XDG_CONFIG/icloud-recent/config"
+CONFIG="$XDG_CONFIG/omarchy-icloud-photos/config"
 DAYS=7
 
 if [ "${1:-}" = "--print-env" ]; then
@@ -24,13 +24,13 @@ if [ "${1:-}" = "--reset" ]; then
   rm -rf "$DEMO_HOME"
 fi
 
-mkdir -p "$LIBRARY" "$XDG_CACHE/icloud-recent" "$(dirname "$CONFIG")"
+mkdir -p "$LIBRARY" "$XDG_CACHE/omarchy-icloud-photos" "$(dirname "$CONFIG")"
 cat > "$CONFIG" <<CFG
-# Demo configuration written by icloud-recent-demo
+# Demo configuration written by omarchy-icloud-photos-demo
 DEMO=1
 APPLE_ID=demo@example.com
 LIBRARY=$LIBRARY
-CACHE=$XDG_CACHE/icloud-recent
+CACHE=$XDG_CACHE/omarchy-icloud-photos
 DAYS=$DAYS
 CFG
 
@@ -39,14 +39,14 @@ CFG
 mapfile -t sources < <(find /usr/share/omarchy/themes "${XDG_CONFIG_HOME:-$HOME/.config}/omarchy/themes" \
   -type f \( -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.png' \) -path '*background*' 2>/dev/null | sort -u)
 if [ "${#sources[@]}" -eq 0 ]; then
-  echo "icloud-recent-demo: no Omarchy theme backgrounds found" >&2
+  echo "omarchy-icloud-photos-demo: no Omarchy theme backgrounds found" >&2
   exit 1
 fi
 
 if find "$LIBRARY" -type f -name 'IMG_*' | grep -q .; then
-  echo "icloud-recent-demo: library already built at $LIBRARY (use --reset to rebuild)"
+  echo "omarchy-icloud-photos-demo: library already built at $LIBRARY (use --reset to rebuild)"
 else
-  echo "icloud-recent-demo: building from ${#sources[@]} backgrounds…"
+  echo "omarchy-icloud-photos-demo: building from ${#sources[@]} backgrounds…"
   now=$(date +%s)
   n=1000
   # Deterministic shuffle so the demo looks the same on every run.
@@ -105,4 +105,4 @@ else
   rm -rf "$tmp"
 fi
 
-XDG_CONFIG_HOME="$XDG_CONFIG" XDG_CACHE_HOME="$XDG_CACHE" "$(dirname "$(readlink -f "$0")")/icloud-recent-sync" --index-only
+XDG_CONFIG_HOME="$XDG_CONFIG" XDG_CACHE_HOME="$XDG_CACHE" "$(dirname "$(readlink -f "$0")")/omarchy-icloud-photos-sync" --index-only

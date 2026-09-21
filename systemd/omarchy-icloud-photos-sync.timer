@@ -1,5 +1,5 @@
 [Unit]
-Description=Run icloud-recent-sync every 30 minutes
+Description=Run omarchy-icloud-photos-sync every 30 minutes
 
 [Timer]
 OnBootSec=5min

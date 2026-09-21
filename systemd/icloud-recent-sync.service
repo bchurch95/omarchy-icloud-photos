@@ -1,9 +1,0 @@
-[Unit]
-Description=Sync the last week of iCloud Photos for icloud-recent
-After=network-online.target
-
-[Service]
-Type=oneshot
-ExecStart=%h/.local/bin/icloud-recent-sync
-Nice=10
-IOSchedulingClass=idle

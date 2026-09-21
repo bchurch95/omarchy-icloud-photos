@@ -1,0 +1,9 @@
+[Unit]
+Description=Sync the last week of iCloud Photos for omarchy-icloud-photos
+After=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=%h/.local/bin/omarchy-icloud-photos-sync
+Nice=10
+IOSchedulingClass=idle

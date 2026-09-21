@@ -25,25 +25,40 @@ if ! command -v icloudpd >/dev/null; then
   chmod +x "$HOME/.local/bin/icloudpd"
 fi
 
-mkdir -p "$HOME/.local/bin" "$HOME/.local/share/applications" "$config/systemd/user" "$config/icloud-recent"
-ln -sf "$here/bin/icloud-recent" "$HOME/.local/bin/icloud-recent"
-ln -sf "$here/bin/icloud-recent-sync" "$HOME/.local/bin/icloud-recent-sync"
+# Installs from before the rename (everything was called icloud-recent) move
+# over: config and cache keep their contents, the old links and units go.
+cache="${XDG_CACHE_HOME:-$HOME/.cache}"
+if [ -d "$config/icloud-recent" ] && [ ! -d "$config/omarchy-icloud-photos" ]; then
+  mv "$config/icloud-recent" "$config/omarchy-icloud-photos"
+fi
+if [ -d "$cache/icloud-recent" ] && [ ! -d "$cache/omarchy-icloud-photos" ]; then
+  mv "$cache/icloud-recent" "$cache/omarchy-icloud-photos"
+fi
+if [ -e "$config/systemd/user/icloud-recent-sync.timer" ]; then
+  systemctl --user disable --now icloud-recent-sync.timer 2>/dev/null || true
+  rm -f "$config/systemd/user/icloud-recent-sync.timer" "$config/systemd/user/icloud-recent-sync.service"
+fi
+rm -f "$HOME/.local/bin/icloud-recent" "$HOME/.local/bin/icloud-recent-sync" "$HOME/.local/share/applications/icloud-recent.desktop"
+
+mkdir -p "$HOME/.local/bin" "$HOME/.local/share/applications" "$config/systemd/user" "$config/omarchy-icloud-photos"
+ln -sf "$here/bin/omarchy-icloud-photos" "$HOME/.local/bin/omarchy-icloud-photos"
+ln -sf "$here/bin/omarchy-icloud-photos-sync" "$HOME/.local/bin/omarchy-icloud-photos-sync"
 # The desktop entry is copied, not linked, so the icon can get its absolute
 # path. LAUNCHER_NAME in the config renames it in the app launcher.
 LAUNCHER_NAME=""
-[ -f "$config/icloud-recent/config" ] && . "$config/icloud-recent/config"
-sed "s|@ICON@|$here/assets/icon.png|; s|^Name=.*|Name=${LAUNCHER_NAME:-Omarchy iCloud Photos}|" "$here/icloud-recent.desktop" > "$HOME/.local/share/applications/icloud-recent.desktop"
-ln -sf "$here/systemd/icloud-recent-sync.service" "$config/systemd/user/icloud-recent-sync.service"
-ln -sf "$here/systemd/icloud-recent-sync.timer" "$config/systemd/user/icloud-recent-sync.timer"
+[ -f "$config/omarchy-icloud-photos/config" ] && . "$config/omarchy-icloud-photos/config"
+sed "s|@ICON@|$here/assets/icon.png|; s|^Name=.*|Name=${LAUNCHER_NAME:-Omarchy iCloud Photos}|" "$here/omarchy-icloud-photos.desktop" > "$HOME/.local/share/applications/omarchy-icloud-photos.desktop"
+ln -sf "$here/systemd/omarchy-icloud-photos-sync.service" "$config/systemd/user/omarchy-icloud-photos-sync.service"
+ln -sf "$here/systemd/omarchy-icloud-photos-sync.timer" "$config/systemd/user/omarchy-icloud-photos-sync.timer"
 
-if [ ! -f "$config/icloud-recent/config" ]; then
-  cat > "$config/icloud-recent/config" <<CFG
-# icloud-recent configuration, sourced by icloud-recent-sync
+if [ ! -f "$config/omarchy-icloud-photos/config" ]; then
+  cat > "$config/omarchy-icloud-photos/config" <<CFG
+# omarchy-icloud-photos configuration, sourced by omarchy-icloud-photos-sync
 # APPLE_ID is filled in by the sign-in card in the app.
 LIBRARY=\$HOME/Pictures/iCloud
 DAYS=7
 CFG
-  echo "Start icloud-recent and sign in with your Apple ID."
+  echo "Start omarchy-icloud-photos and sign in with your Apple ID."
 fi
 
 # The trash helper talks to iCloud through pyicloud, which comes with the
@@ -68,5 +83,5 @@ fi
 
 update-desktop-database "$HOME/.local/share/applications" 2>/dev/null || true
 systemctl --user daemon-reload
-systemctl --user enable --now icloud-recent-sync.timer
-echo "installed; next sync: $(systemctl --user list-timers icloud-recent-sync.timer --no-pager | sed -n 2p | awk '{print $1, $2, $3}')"
+systemctl --user enable --now omarchy-icloud-photos-sync.timer
+echo "installed; next sync: $(systemctl --user list-timers omarchy-icloud-photos-sync.timer --no-pager | sed -n 2p | awk '{print $1, $2, $3}')"
