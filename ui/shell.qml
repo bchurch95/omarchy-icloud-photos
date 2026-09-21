@@ -899,54 +899,109 @@ ShellRoot {
         flickDeceleration: 400
         maximumFlickVelocity: 7000
 
+        // Animated scroll target for keyboard navigation
         NumberAnimation {
           id: scrollAnim
           target: grid
           property: "contentY"
-          duration: 110
+          duration: 120
           easing.type: Easing.OutQuad
         }
 
-        // Fast, smooth scrolling for both touchpad and mouse wheel.
+        // Kinetic momentum glide timer (runs at display refresh rate)
+        Timer {
+          id: momentumTimer
+          interval: 16
+          repeat: true
+          property real lastFrameTime: 0
+
+          onTriggered: {
+            var now = Date.now();
+            var dtSec = lastFrameTime > 0 ? Math.min(0.05, (now - lastFrameTime) / 1000) : 0.016;
+            lastFrameTime = now;
+
+            var dy = wheelHandler.velocity * dtSec;
+            var newY = grid.contentY - dy;
+
+            if (newY <= 0) {
+              grid.contentY = 0;
+              wheelHandler.velocity = 0;
+              stop();
+              return;
+            }
+            var maxY = Math.max(0, grid.contentHeight - grid.height);
+            if (newY >= maxY) {
+              grid.contentY = maxY;
+              wheelHandler.velocity = 0;
+              stop();
+              return;
+            }
+
+            grid.contentY = newY;
+            // Frame-rate independent exponential friction decay (~0.93 per 16ms)
+            wheelHandler.velocity *= Math.pow(0.93, dtSec / 0.016);
+
+            if (Math.abs(wheelHandler.velocity) < 30) {
+              wheelHandler.velocity = 0;
+              stop();
+            }
+          }
+
+          onRunningChanged: {
+            if (running) lastFrameTime = Date.now();
+          }
+        }
+
+        // Finger release detector for touchpad (triggers kinetic inertia when fingers lift)
+        Timer {
+          id: releaseTimer
+          interval: 65
+          repeat: false
+          onTriggered: {
+            if (Math.abs(wheelHandler.velocity) > 80) {
+              momentumTimer.start();
+            } else {
+              wheelHandler.velocity = 0;
+            }
+          }
+        }
+
+        // Unified high-precision wheel & touchpad handler with kinetic inertia
         WheelHandler {
           id: wheelHandler
           acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
           orientation: Qt.Vertical
-          property real lastDeltaY: 0
-          property real lastTime: 0
+          property real velocity: 0
+          property real lastEventTime: 0
 
           onWheel: event => {
             root.pinBottom = false;
+            scrollAnim.stop();
+
+            var now = Date.now();
+            var dt = lastEventTime > 0 ? Math.max(1, now - lastEventTime) : 16;
+            lastEventTime = now;
 
             if (event.pixelDelta.y !== 0) {
-              // Touchpad: boost travel distance by 2.5x so swipes cover more ground
-              scrollAnim.stop();
-              var dy = event.pixelDelta.y * 2.5;
+              // Touchpad event with pixel delta: 1:1 responsive movement scaled for desktop
+              momentumTimer.stop();
+              var dy = event.pixelDelta.y * 2.4;
               grid.contentY = Math.max(0, Math.min(grid.contentHeight - grid.height, grid.contentY - dy));
 
-              var now = Date.now();
-              var dt = now - lastTime;
-              lastTime = now;
-              lastDeltaY = dy;
+              // Compute velocity in pixels per second with moving average
+              var instVel = (dy / dt) * 1000;
+              wheelHandler.velocity = Math.max(-9000, Math.min(9000, wheelHandler.velocity * 0.3 + instVel * 0.7));
 
-              // If user made a fast flick gesture, trigger Flickable kinetic inertia
-              if (dt > 0 && dt < 45 && Math.abs(dy) > 10) {
-                grid.flick(0, (dy / dt) * 1200);
-              }
-
+              releaseTimer.restart();
               event.accepted = true;
               return;
             }
 
-            // Mouse wheel: scroll ~280px (full row+) per notch, fast 110ms animation
+            // Mouse wheel event (discrete angle delta notches): impart smooth glide impulse
             var ticks = event.angleDelta.y / 120;
-            var step = ticks * Math.max(280, (root.cell + root.gap) * 1.6);
-            var currentTarget = scrollAnim.running ? scrollAnim.to : grid.contentY;
-            var targetY = Math.max(0, Math.min(grid.contentHeight - grid.height, currentTarget - step));
-            scrollAnim.stop();
-            scrollAnim.from = grid.contentY;
-            scrollAnim.to = targetY;
-            scrollAnim.start();
+            var impulse = ticks * 2000;
+            wheelHandler.velocity = Math.max(-9000, Math.min(9000, (wheelHandler.velocity * 0.25) + impulse));
+            momentumTimer.start();
             event.accepted = true;
           }
         }
@@ -959,7 +1014,7 @@ ShellRoot {
           anchors.bottom: parent.bottom
           policy: ScrollBar.AsNeeded
           hoverEnabled: true
-          active: pressed || hovered || grid.moving || grid.flicking || scrollAnim.running
+          active: pressed || hovered || grid.moving || grid.flicking || momentumTimer.running || scrollAnim.running
           contentItem: Rectangle {
             implicitWidth: vbar.hovered || vbar.pressed ? 8 : 5
             radius: width / 2
@@ -987,6 +1042,8 @@ ShellRoot {
         onMovementStarted: {
           root.pinBottom = false;
           scrollAnim.stop();
+          momentumTimer.stop();
+          wheelHandler.velocity = 0;
         }
 
         function reveal(thumb) {
@@ -998,6 +1055,7 @@ ShellRoot {
           if (top < contentY) target = Math.max(0, top);
           else if (bottom > contentY + height) target = Math.min(contentHeight - height, bottom - height);
           if (target !== contentY) {
+            momentumTimer.stop();
             scrollAnim.stop();
             scrollAnim.from = grid.contentY;
             scrollAnim.to = target;
