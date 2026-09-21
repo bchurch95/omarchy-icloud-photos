@@ -645,28 +645,44 @@ ShellRoot {
     settleTimer.restart();
   }
 
+  // The tour, for the demo clip: scroll down with a bit of pace, open a
+  // Live Photo and let it play, show the details, then back to the grid for
+  // a delete and its undo. About twenty seconds.
   Timer {
     id: tourKickoff
-    interval: 2500
-    onTriggered: {
-      root.tourStarted = true;
-      tourScroll.from = grid.contentY;
-      tourScroll.to = Math.max(0, grid.contentHeight - grid.height);
-      tourScroll.start();
+    interval: 1500
+    onTriggered: { root.tourStarted = true; tour.start(); }
+  }
+  SequentialAnimation {
+    id: tour
+    NumberAnimation {
+      target: grid; property: "contentY"
+      from: 0; to: Math.max(0, grid.contentHeight - grid.height)
+      duration: 4500; easing.type: Easing.InOutCubic
     }
-  }
-  NumberAnimation {
-    id: tourScroll
-    target: grid
-    property: "contentY"
-    duration: 11000
-    easing.type: Easing.InOutSine
-    onFinished: tourOpen.start()
-  }
-  Timer {
-    id: tourOpen
-    interval: 900
-    onTriggered: { root.selected = Math.max(0, root.items.length - 3); root.viewerOpen = true; }
+    PauseAnimation { duration: 600 }
+    ScriptAction { script: {
+      var last = -1;
+      for (var i = root.items.length - 1; i >= 0; i--) if (root.items[i].kind === "live") { last = i; break; }
+      root.jumpTo(last >= 0 ? last : root.items.length - 1, false);
+    } }
+    PauseAnimation { duration: 700 }
+    ScriptAction { script: root.viewerOpen = true }
+    PauseAnimation { duration: 1200 }
+    ScriptAction { script: viewer.playLive() }
+    PauseAnimation { duration: 2600 }
+    ScriptAction { script: root.toggleInfo() }
+    PauseAnimation { duration: 3000 }
+    ScriptAction { script: root.infoOpen = false }
+    PauseAnimation { duration: 500 }
+    ScriptAction { script: root.viewerOpen = false }
+    PauseAnimation { duration: 900 }
+    ScriptAction { script: root.askDelete() }
+    PauseAnimation { duration: 2000 }
+    ScriptAction { script: root.confirmDelete() }
+    PauseAnimation { duration: 2200 }
+    ScriptAction { script: root.undoDelete() }
+    PauseAnimation { duration: 2000 }
   }
 
   Timer {
@@ -944,7 +960,9 @@ ShellRoot {
                     theme: appTheme
                     size: root.cell
                     selected: root.selected === modelData
-                    checked: root.checked[root.items[modelData].id] === true
+                    // items[] can be a step behind the model while a delete
+                    // rebuilds the grid, hence the guard.
+                    checked: !!root.items[modelData] && root.checked[root.items[modelData].id] === true
                     onSelectedChanged: if (selected) grid.reveal(this)
                     // Click selects, a click on the selected one opens.
                     // Shift-click checks the range from the anchor, ctrl-click

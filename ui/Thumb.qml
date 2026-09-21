@@ -42,7 +42,7 @@ Rectangle {
   }
 
   Rectangle {
-    visible: item && item.kind === "video"
+    visible: !!item && item.kind === "video"
     anchors.left: parent.left
     anchors.bottom: parent.bottom
     anchors.margins: 8
@@ -73,7 +73,7 @@ Rectangle {
 
   // Live Photo mark, the same circle the phone shows top-left.
   Row {
-    visible: item && item.kind === "live"
+    visible: !!item && item.kind === "live"
     anchors.left: parent.left
     anchors.top: parent.top
     anchors.margins: 8
