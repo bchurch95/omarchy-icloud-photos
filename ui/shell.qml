@@ -896,31 +896,51 @@ ShellRoot {
         contentWidth: width
         contentHeight: column.implicitHeight + 32
         boundsBehavior: Flickable.StopAtBounds
-        flickDeceleration: 750
-        maximumFlickVelocity: 4000
+        flickDeceleration: 400
+        maximumFlickVelocity: 7000
 
         NumberAnimation {
           id: scrollAnim
           target: grid
           property: "contentY"
-          duration: 160
-          easing.type: Easing.OutCubic
+          duration: 110
+          easing.type: Easing.OutQuad
         }
 
-        // Smooth scrolling for discrete mouse wheel notches, while letting
-        // continuous touchpad gestures pass to Flickable for natural 1:1 glide and inertia.
+        // Fast, smooth scrolling for both touchpad and mouse wheel.
         WheelHandler {
           id: wheelHandler
-          acceptedDevices: PointerDevice.Mouse
+          acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
           orientation: Qt.Vertical
+          property real lastDeltaY: 0
+          property real lastTime: 0
+
           onWheel: event => {
+            root.pinBottom = false;
+
             if (event.pixelDelta.y !== 0) {
-              event.accepted = false;
+              // Touchpad: boost travel distance by 2.5x so swipes cover more ground
+              scrollAnim.stop();
+              var dy = event.pixelDelta.y * 2.5;
+              grid.contentY = Math.max(0, Math.min(grid.contentHeight - grid.height, grid.contentY - dy));
+
+              var now = Date.now();
+              var dt = now - lastTime;
+              lastTime = now;
+              lastDeltaY = dy;
+
+              // If user made a fast flick gesture, trigger Flickable kinetic inertia
+              if (dt > 0 && dt < 45 && Math.abs(dy) > 10) {
+                grid.flick(0, (dy / dt) * 1200);
+              }
+
+              event.accepted = true;
               return;
             }
-            root.pinBottom = false;
+
+            // Mouse wheel: scroll ~280px (full row+) per notch, fast 110ms animation
             var ticks = event.angleDelta.y / 120;
-            var step = ticks * Math.max(140, root.cell * 0.85);
+            var step = ticks * Math.max(280, (root.cell + root.gap) * 1.6);
             var currentTarget = scrollAnim.running ? scrollAnim.to : grid.contentY;
             var targetY = Math.max(0, Math.min(grid.contentHeight - grid.height, currentTarget - step));
             scrollAnim.stop();
