@@ -67,7 +67,7 @@ Every picture here is the whole window, taken from the demo library.
 <table>
 <tr>
 <td width="50%"><img src="assets/live.jpg" alt="A Live Photo in the viewer, the ring top-left lit while the clip plays"><br><sub>A Live Photo: hover the ring top-left and the clip plays once.</sub></td>
-<td width="50%"><img src="assets/details.jpg" alt="The viewer with the details panel open"><br><sub><code>i</code>: camera, lens, shutter, ISO, size and location. Demo pictures carry no EXIF, so this one shows only size and file.</sub></td>
+<td width="50%"><img src="assets/details.jpg" alt="The viewer with the details panel open"><br><sub><code>i</code>: camera, lens, focal length, aperture, shutter, ISO, size and location.</sub></td>
 </tr>
 <tr>
 <td><img src="assets/delete.jpg" alt="The delete dialog over the grid"><br><sub><code>d</code> asks first, with the picture in the dialog.</sub></td>
