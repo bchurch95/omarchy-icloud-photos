@@ -83,28 +83,17 @@ Rectangle {
       color: Qt.rgba(0, 0, 0, 0.6)
       border.color: Qt.rgba(1, 1, 1, 0.8)
       border.width: 1
-      Text {
+      Rectangle {
         anchors.centerIn: parent
-        text: "\uf192"
-        color: "white"
-        font.family: theme.fontFamily
-        font.pixelSize: 11
+        width: 11; height: 11; radius: 5.5
+        color: "transparent"
+        border.width: 1
+        border.color: "white"
       }
-    }
-    Rectangle {
-      anchors.verticalCenter: parent.verticalCenter
-      width: liveText.implicitWidth + 10
-      height: 18
-      radius: 4
-      color: Qt.rgba(0, 0, 0, 0.6)
-      Text {
-        id: liveText
+      Rectangle {
         anchors.centerIn: parent
-        text: "LIVE"
+        width: 4; height: 4; radius: 2
         color: "white"
-        font.family: theme.fontFamily
-        font.pixelSize: 10
-        font.bold: true
       }
     }
   }

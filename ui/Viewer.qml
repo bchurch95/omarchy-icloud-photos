@@ -124,80 +124,38 @@ Rectangle {
   }
 
   // ---- Live Photo button ---------------------------------------------------
-  // A small round button on the picture, like the phone has: tap to play the
-  // moving half, tap again to go back to the still. Space does the same.
-  Rectangle {
-    visible: item !== null && item.kind === "live"
-    anchors.left: frame.left
-    anchors.bottom: frame.bottom
-    anchors.margins: 16
-    width: 40; height: 40; radius: 20
-    color: root.videoShown ? theme.accent : Qt.rgba(0, 0, 0, 0.55)
-    border.color: root.videoShown ? theme.accent : Qt.rgba(1, 1, 1, 0.6)
-    border.width: 1.5
-    Text {
-      anchors.centerIn: parent
-      text: "\uf192"
-      color: root.videoShown ? theme.darkerBackground : "white"
-      font.family: theme.fontFamily
-      font.pixelSize: 17
-    }
-    MouseArea {
-      anchors.fill: parent
-      hoverEnabled: true
-      cursorShape: Qt.PointingHandCursor
-      onClicked: root.togglePlay()
-    }
-    Text {
-      anchors.left: parent.right
-      anchors.leftMargin: 10
-      anchors.verticalCenter: parent.verticalCenter
-      text: "LIVE"
-      color: "white"
-      font.family: theme.fontFamily
-      font.pixelSize: 11
-      font.bold: true
-      style: Text.Outline
-      styleColor: Qt.rgba(0, 0, 0, 0.7)
-    }
-  }
-
-  // ---- Live Photo button ---------------------------------------------------
-  // The small round button on the picture: move the pointer over it and the
+  // The small round button sits on the picture itself, bottom-left of the
+  // painted area, like the phone's mark. Move the pointer over it and the
   // clip plays once, then the still is back. Space does the same.
-  Rectangle {
-    visible: item !== null && item.kind === "live"
-    anchors.left: frame.left
-    anchors.bottom: frame.bottom
-    anchors.margins: 16
-    width: 36; height: 36; radius: 18
-    color: root.videoShown ? theme.accent : Qt.rgba(0, 0, 0, 0.55)
-    border.color: root.videoShown ? theme.accent : Qt.rgba(1, 1, 1, 0.7)
-    border.width: 1.5
-    Text {
-      anchors.centerIn: parent
-      text: "\uf192"
-      color: root.videoShown ? theme.darkerBackground : "white"
-      font.family: theme.fontFamily
-      font.pixelSize: 16
-    }
-    MouseArea {
-      anchors.fill: parent
-      hoverEnabled: true
-      onEntered: root.playLive()
-      onClicked: root.playLive()
-    }
-    Text {
-      anchors.left: parent.right
-      anchors.leftMargin: 8
-      anchors.verticalCenter: parent.verticalCenter
-      text: "LIVE"
-      color: "white"
-      font.family: theme.fontFamily
-      font.pixelSize: 11
-      font.bold: true
-      style: Text.Outline
-      styleColor: Qt.rgba(0, 0, 0, 0.7)
+  Row {
+    visible: item !== null && item.kind === "live" && still.paintedWidth > 0
+    x: still.x + (still.width - still.paintedWidth) / 2 + 14
+    y: still.y + (still.height + still.paintedHeight) / 2 - height - 14
+    spacing: 8
+    Rectangle {
+      width: 36; height: 36; radius: 18
+      color: root.videoShown ? theme.accent : Qt.rgba(0, 0, 0, 0.55)
+      border.color: root.videoShown ? theme.accent : Qt.rgba(1, 1, 1, 0.7)
+      border.width: 1.5
+      // Ring and dot drawn as shapes: a font glyph never sits dead centre.
+      Rectangle {
+        anchors.centerIn: parent
+        width: 18; height: 18; radius: 9
+        color: "transparent"
+        border.width: 1.5
+        border.color: root.videoShown ? theme.darkerBackground : "white"
+      }
+      Rectangle {
+        anchors.centerIn: parent
+        width: 7; height: 7; radius: 3.5
+        color: root.videoShown ? theme.darkerBackground : "white"
+      }
+      MouseArea {
+        anchors.fill: parent
+        hoverEnabled: true
+        onEntered: root.playLive()
+        onClicked: root.playLive()
+      }
     }
   }
 
@@ -342,23 +300,6 @@ Rectangle {
           onClicked: root.requestCopyPath()
         }
       }
-      Rectangle {
-        visible: item && item.kind === "live"
-        anchors.verticalCenter: parent.verticalCenter
-        width: liveLabel.implicitWidth + 12
-        height: 20
-        radius: 4
-        color: root.videoShown ? theme.accent : theme.lighterBackground
-        Text {
-          id: liveLabel
-          anchors.centerIn: parent
-          text: "LIVE"
-          color: root.videoShown ? theme.darkerBackground : theme.foreground
-          font.family: theme.fontFamily
-          font.pixelSize: 11
-          font.bold: true
-        }
-      }
     }
 
     Row {
@@ -366,16 +307,6 @@ Rectangle {
       anchors.rightMargin: 12
       anchors.verticalCenter: parent.verticalCenter
       spacing: 10
-
-      // Only a nudge for the one key that is not obvious; `?` has the rest.
-      Text {
-        anchors.verticalCenter: parent.verticalCenter
-        visible: root.hasVideo && !root.videoShown
-        text: "space plays"
-        color: theme.darkForeground
-        font.family: theme.fontFamily
-        font.pixelSize: theme.fontSize - 1
-      }
 
       // Download: a copy of the original lands in ~/Downloads.
       Rectangle {
