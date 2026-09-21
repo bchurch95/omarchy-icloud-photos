@@ -132,11 +132,38 @@ Item {
           inputMethodHints: Qt.ImhEmailCharactersOnly | Qt.ImhNoAutoUppercase
           onAccepted: passwordField.forceActiveFocus()
         }
-        Field {
-          id: passwordField
-          placeholderText: "Password"
-          echoMode: TextInput.Password
-          onAccepted: signInButton.clicked()
+        // Password with an eye to show it: a typo is the usual reason for a
+        // "wrong password" and there is no other way to see one.
+        Item {
+          width: 300
+          height: 38
+          Field {
+            id: passwordField
+            anchors.fill: parent
+            placeholderText: "Password"
+            echoMode: showPassword.checked ? TextInput.Normal : TextInput.Password
+            rightPadding: 40
+            onAccepted: signInButton.clicked()
+          }
+          Text {
+            id: showPassword
+            property bool checked: false
+            anchors.right: parent.right
+            anchors.rightMargin: 12
+            anchors.verticalCenter: parent.verticalCenter
+            text: checked ? "\uf070" : "\uf06e"
+            color: eyeArea.containsMouse || checked ? theme.foreground : theme.darkForeground
+            font.family: theme.fontFamily
+            font.pixelSize: 14
+            MouseArea {
+              id: eyeArea
+              anchors.fill: parent
+              anchors.margins: -6
+              hoverEnabled: true
+              cursorShape: Qt.PointingHandCursor
+              onClicked: { showPassword.checked = !showPassword.checked; passwordField.forceActiveFocus(); }
+            }
+          }
         }
         Button {
           id: signInButton

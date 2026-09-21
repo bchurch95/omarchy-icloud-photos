@@ -309,6 +309,8 @@ ShellRoot {
     if (msg.step === "2fa") {
       loginCard.busy = false;
       loginCard.step = "code";
+    } else if (msg.step === "retry") {
+      loginCard.error = msg.message || "Trying again…";
     } else if (msg.ok) {
       loginCard.busy = false;
       loginCard.reset();

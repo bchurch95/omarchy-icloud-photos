@@ -88,8 +88,10 @@ def fail(message, **extra):
 
 
 def connect(cfg):
+    # The constructor signs in by itself (session token first, password if
+    # needed). Calling authenticate() again would be a second sign-in in a
+    # row, which Apple answers with a 503.
     api = PyiCloudService("com", cfg["APPLE_ID"], lambda: None, cookie_directory=cfg["COOKIES"])
-    api.authenticate()
     if api.requires_2fa:
         fail("iCloud session expired; run icloudpd --auth-only")
     return api
@@ -148,20 +150,27 @@ def demo(cfg):
 
 def cmd_login(args, cfg):
     password = sys.stdin.readline().rstrip("\n")
+    # Length and character class only, never the password: enough to tell a
+    # typo from a transport problem when Apple answers 401.
+    logging.getLogger().info("password: %d characters, non-ascii=%s, ends with space=%s",
+                             len(password), any(ord(c) > 127 for c in password), password.endswith(" "))
     if demo(cfg):
         emit({"ok": True, "username": args.username})
         return
     cookies = cfg["COOKIES"]
+    # Apple answers 503 on the sign-in front door when it has seen too many
+    # sign-ins for the account in a short time, and every new attempt,
+    # including an automatic retry, stretches that window. So: one attempt,
+    # and on a 503 a clear request to leave it alone for a while.
     try:
         api = PyiCloudService("com", args.username, lambda: password or None, cookie_directory=cookies)
-        api.authenticate()
     except PyiCloudFailedLoginException:
         fail("Wrong Apple ID or password")
     except PyiCloudServiceUnavailableException:
-        logging.getLogger().exception("503 during authenticate")
-        # HTTP 503 from Apple: their rate limit after a few sign-ins in a row.
-        fail("Apple is holding off sign-ins for a while (too many attempts in a row). "
-             "Wait fifteen minutes or so and try again; retrying sooner extends the wait.")
+        logging.getLogger().warning("503 during authenticate")
+        fail("Apple is not taking sign-ins for this account right now, which happens after "
+             "several sign-ins in a short time. Leave it for half an hour, then try once; "
+             "every attempt before that extends the wait.")
     except PyiCloudConnectionErrorException:
         fail("Could not reach iCloud. Check the connection and try again.")
     except PyiCloudException as e:
