@@ -129,13 +129,13 @@ Rectangle {
   }
 
   // ---- Live Photo button ---------------------------------------------------
-  // The small round button sits on the picture itself, bottom-left of the
-  // painted area, like the phone's mark. Move the pointer over it and the
-  // clip plays once, then the still is back. Space does the same.
+  // The small round button sits top-left on the picture, where the phone
+  // puts its mark. Move the pointer over it and the clip plays once, then
+  // the still is back. Space does the same.
   Row {
     visible: item !== null && item.kind === "live" && still.paintedWidth > 0
     x: still.x + (still.width - still.paintedWidth) / 2 + 14
-    y: still.y + (still.height + still.paintedHeight) / 2 - height - 14
+    y: still.y + (still.height - still.paintedHeight) / 2 + 14
     spacing: 8
     // One ring with a dot, in whole pixels so nothing lands on a half pixel.
     Rectangle {
