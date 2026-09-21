@@ -33,11 +33,11 @@ Rectangle {
       ["W", "set as the Omarchy wallpaper"]
     ]},
     { title: "Viewer", keys: [
-      ["h l  j k", "previous, next"],
+      ["arrows  h l  j k", "previous, next"],
       ["scroll", "previous, next"],
       ["space", "pause or resume a video, play a Live Photo once"],
       ["hover the circle", "play a Live Photo once"],
-      ["←  →", "seek 5 seconds"],
+      ["shift + ←  →", "seek 5 seconds (video)"],
       ["i", "camera and file details"],
       ["esc  q", "back to the grid"]
     ]}
