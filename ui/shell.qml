@@ -956,6 +956,11 @@ ShellRoot {
         }
 
         readonly property int columns: Math.max(1, Math.floor((width - 40 + root.gap) / (root.cell + root.gap)))
+        // The slider sets the size to aim for; the row then divides the width
+        // it actually has between that many tiles, so both edges stay flush
+        // whatever the window does and resizing only changes the tiles a
+        // little rather than leaving a ragged strip on the right.
+        readonly property real cellFit: (width - 40 - (columns - 1) * root.gap) / columns
 
         // Scroll position to hold while a rebuild changes the content height.
         property real restoreY: -1
@@ -1020,7 +1025,7 @@ ShellRoot {
                     index: modelData
                     item: root.items[modelData]
                     theme: appTheme
-                    size: root.cell
+                    size: grid.cellFit
                     selected: root.selected === modelData
                     // items[] can be a step behind the model while a delete
                     // rebuilds the grid, hence the guard.

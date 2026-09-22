@@ -9,7 +9,9 @@ Rectangle {
   required property var theme
   property var item: null
   property int index: -1
-  property int size: 176
+  // Real, not int: the grid divides the row between its tiles and the result
+  // rarely lands on a whole pixel.
+  property real size: 176
   property bool selected: false
   property bool checked: false
 
