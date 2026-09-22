@@ -1,21 +1,38 @@
 #!/bin/bash
-# Put an image on the clipboard in a form other apps can paste.
+# Put a picture or a video on the clipboard in a form other apps can paste.
 #
 # A photo goes as JPEG: the source is a lossy photo to begin with, and the
 # same picture as PNG is several times the size for not one pixel more of
 # quality. PNG is kept for what needs it, so a screenshot stays sharp and
 # anything with transparency keeps it.
 #
-# Either way the file is re-encoded rather than handed over as it is: the
-# previews carry the camera's EXIF, GPS included, and that should not travel
-# to whatever the picture is pasted into.
+# A video goes as MP4. The SDR copies already are one; a .MOV is rewrapped
+# without re-encoding, which is a copy of the stream into another container
+# and takes no longer than reading the file.
+#
+# Pictures are re-encoded rather than handed over as they are: the previews
+# carry the camera's EXIF, GPS included, and that should not travel to
+# whatever the picture is pasted into.
 set -euo pipefail
 umask 077
 
 if (( $# != 1 )); then
-  echo "usage: omarchy-icloud-photos-copy IMAGE" >&2
+  echo "usage: omarchy-icloud-photos-copy FILE" >&2
   exit 1
 fi
+
+case "${1,,}" in
+  *.mp4|*.m4v)
+    exec wl-copy --type video/mp4 < "$1"
+    ;;
+  *.mov)
+    video=$(mktemp --suffix=.mp4)
+    trap 'rm -f "$video"' EXIT
+    ffmpeg -v error -y -i "$1" -c copy -movflags +faststart "$video"
+    wl-copy --type video/mp4 < "$video"
+    exit 0
+    ;;
+esac
 
 # Only the first frame of a GIF, and the format decided from the file itself
 # rather than its name.

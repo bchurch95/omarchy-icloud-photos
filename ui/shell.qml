@@ -437,7 +437,9 @@ ShellRoot {
       return;
     }
     var it = list[0];
-    var src = it.kind === "video" ? it.thumb : it.preview;
+    // A video copies as the video. A Live Photo is a still that happens to
+    // move, so that one copies as its picture, like it does everywhere else.
+    var src = it.kind === "video" ? it.video : it.preview;
     copier.command = [binDir + "/omarchy-icloud-photos-copy", src];
     copier.successMessage = "Copied image to clipboard";
     toast.show("Copying image…", 30000);
