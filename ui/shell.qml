@@ -1009,6 +1009,7 @@ ShellRoot {
 
           onWheel: event => {
             root.pinBottom = false;
+            scrollAnim.stop();
 
             if (event.pixelDelta.y !== 0) {
               // Touchpad: 1:1 responsive drag with velocity tracking and flick inertia
@@ -1056,12 +1057,20 @@ ShellRoot {
           if (root.pinBottom) scrollToBottom();
           else if (restoreY >= 0) contentY = clampY(restoreY);
         }
-        onHeightChanged: if (root.pinBottom) scrollToBottom()
         onMovementStarted: {
           root.pinBottom = false;
+          scrollAnim.stop();
           momentumTimer.stop();
           releaseTimer.stop();
           wheelHandler.velocity = 0;
+        }
+
+        NumberAnimation {
+          id: scrollAnim
+          target: grid
+          property: "contentY"
+          duration: 130
+          easing.type: Easing.OutQuad
         }
 
         function reveal(thumb) {
@@ -1072,8 +1081,15 @@ ShellRoot {
           var p = thumb.mapToItem(grid.contentItem, 0, 0);
           var top = p.y - 44;      // keep the day label in view when moving up
           var bottom = p.y + thumb.height + 16;
-          if (top < contentY) contentY = Math.max(0, top);
-          else if (bottom > contentY + height) contentY = Math.min(contentHeight - height, bottom - height);
+          var target = contentY;
+          if (top < contentY) target = Math.max(0, top);
+          else if (bottom > contentY + height) target = Math.min(contentHeight - height, bottom - height);
+          if (target !== contentY) {
+            scrollAnim.stop();
+            scrollAnim.from = grid.contentY;
+            scrollAnim.to = target;
+            scrollAnim.start();
+          }
         }
 
         Column {
