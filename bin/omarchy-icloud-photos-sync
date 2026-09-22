@@ -42,10 +42,14 @@ mkdir -p "$LIBRARY" "$THUMBS" "$PREVIEWS" "$VIDEOS"
 
 write_status() {
   # write_status STATE [MESSAGE] [COUNT]
+  # A conversion and a sync can be writing this at the same time, so the
+  # temporary file carries the pid: sharing one name meant whichever renamed
+  # second died on a file the first had already moved away.
+  local tmp="$STATUS.$$.tmp"
   jq -n --arg state "$1" --arg message "${2:-}" --argjson count "${3:-0}" \
     --arg at "$(date -Iseconds)" \
-    '{state: $state, message: $message, count: $count, at: $at}' > "$STATUS.tmp"
-  mv "$STATUS.tmp" "$STATUS"
+    '{state: $state, message: $message, count: $count, at: $at}' > "$tmp"
+  mv "$tmp" "$STATUS"
 }
 
 skip_download=0
@@ -161,7 +165,10 @@ probe_video() {
     return 0
   fi
   if is_hdr "$f"; then probe_hdr=1; else probe_hdr=0; fi
-  probe_duration=$(ffprobe -v error -show_entries format=duration -of csv=p=0 "$f" 2>/dev/null | cut -d. -f1)
+  # icloudpd writes in place, so a pass during a download meets half-written
+  # files. ffprobe fails on those; under set -e that would take the whole sync
+  # down, where the thumbnail step below just skips the item and carries on.
+  probe_duration=$(ffprobe -v error -show_entries format=duration -of csv=p=0 "$f" 2>/dev/null | cut -d. -f1 || true)
   probe_duration=${probe_duration:-0}
   probe_cache["$f"]="$meta $probe_hdr:$probe_duration"
 }
@@ -174,7 +181,17 @@ load_probe_cache
 #
 # An HDR video with no SDR copy yet is indexed as needs_sdr: it still plays,
 # from the original, and the viewer offers to convert it.
+#
+# A sync and a conversion hold different locks, on purpose: converting one
+# clip should not wait for a download. They both end up here though, and this
+# writes index.json, probe.tsv and keep.txt through shared temporary files, so
+# the rebuild itself is serialised. A group command, not a subshell, so count
+# survives for the caller.
 build_index() {
+  { flock 8; _build_index "$@"; } 8>"$CACHE/lock.index"
+}
+
+_build_index() {
   probe_seen=()
 
   # --- Build the index -------------------------------------------------------
@@ -429,7 +446,9 @@ if [ "$mode" != sync ]; then
   build_index
   write_status ok "" "$count"
   echo "omarchy-icloud-photos-sync: converted $((total - failed)) of $total video(s)"
-  exit 0
+  # Non-zero when nothing came of it, so a caller can tell.
+  [ "$failed" -lt "$total" ]
+  exit $?
 fi
 
 if [ "$skip_download" = 0 ]; then
