@@ -188,16 +188,6 @@ ShellRoot {
     onExited: { indexFile.reload(); statusFile.reload(); }
   }
 
-  // Converting an HDR video to SDR is the slow half of a sync, so it never
-  // happens on its own: this runs one item, and only when asked.
-  Process {
-    id: convert
-    property string forId: ""
-    command: []
-    running: false
-    onExited: { convert.forId = ""; indexFile.reload(); statusFile.reload(); }
-  }
-
   Process { id: opener }
   Process {
     id: infoProc
@@ -543,16 +533,6 @@ ShellRoot {
     if (v === settings.cell) return;
     settings.cell = v;
     settingsFile.writeAdapter();
-  }
-
-  // Ask for the SDR copy of one video. One at a time: the point is that the
-  // machine is never busier than the person asked for.
-  function convertItem(it) {
-    if (!it || it.kind !== "video" || it.needs_sdr !== true) return;
-    if (convert.running) return;
-    convert.forId = it.id;
-    convert.command = [root.syncScript, "--convert", it.id];
-    convert.running = true;
   }
 
   function askDelete() {
@@ -1218,9 +1198,6 @@ ShellRoot {
         onRequestCopyPath: root.copyPath()
         onRequestSave: root.saveToDownloads()
         onContextMenuRequested: (x, y) => root.showCopyMenu(viewer, x, y, -1)
-        convertingId: convert.forId
-        convertBusy: convert.running
-        onRequestConvert: root.convertItem(root.current)
       }
 
       // ---- Sign-in ----------------------------------------------------------

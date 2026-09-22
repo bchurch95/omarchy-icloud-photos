@@ -108,7 +108,7 @@ fi
 #
 # Converting is the slow half of the job even on the GPU, and minutes of
 # every core without one, so the sync never starts one by itself: it marks
-# the item needs_sdr and the viewer asks for it by id.
+# the item needs_sdr and waits to be asked, with --convert or --convert-all.
 is_hdr() {
   case "$(ffprobe -v error -select_streams v:0 -show_entries stream=color_transfer -of csv=p=0 "$1" 2>/dev/null | tr -d ",")" in
     arib-std-b67|smpte2084) return 0 ;;
@@ -180,7 +180,7 @@ load_probe_cache
 # files arrive, and once more at the end.
 #
 # An HDR video with no SDR copy yet is indexed as needs_sdr: it still plays,
-# from the original, and the viewer offers to convert it.
+# from the original, until someone asks for the copy.
 #
 # A sync and a conversion hold different locks, on purpose: converting one
 # clip should not wait for a download. They both end up here though, and this
