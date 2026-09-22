@@ -219,7 +219,14 @@ ShellRoot {
       }
     }
   }
-  Process { id: copier }
+  Process {
+    id: copier
+    property string successMessage: ""
+    onExited: (code, status) => {
+      if (code === 0) toast.show(successMessage);
+      else toast.show("Could not copy to clipboard", 3000);
+    }
+  }
 
   // Re-index in the background after a delete or restore so index.json
   // matches what is on disk again; the FileView picks the result up.
@@ -398,23 +405,43 @@ ShellRoot {
     opener.running = true;
   }
 
-  function copyCurrent() {
-    var list = targets();
+  function copyTargets() {
+    return viewerOpen ? (current ? [current] : []) : targets();
+  }
+
+  function showCopyMenu(source, x, y, index) {
+    if (needLogin || helpOpen || pendingDelete) return;
+    var pos = source.mapToItem(keys, x, y);
+    if (index >= 0) {
+      pinBottom = false;
+      // Right-click keeps a checked group, or selects just the clicked photo.
+      if (checked[items[index].id]) selected = index;
+      else jumpTo(index, false);
+    }
+    // Keep the menu's target stable if a background sync rebuilds the grid.
+    copyMenu.items = copyTargets();
+    if (copyMenu.items.length > 0) copyMenu.popup(pos.x, pos.y);
+  }
+
+  function copyCurrent(list) {
+    if (copier.running) return;
+    if (!list) list = copyTargets();
     if (list.length === 0) return;
     if (list.length > 1) {
       // A list of files: file managers paste them as copies, chat apps as
       // attachments. Plain text gets the paths, one per line.
       var uris = list.map(function (it) { return "file://" + encodeURI(it.kind === "video" ? it.video : it.path); });
       copier.command = ["bash", "-c", 'printf "%s\n" "$@" | wl-copy --type text/uri-list', "_"].concat(uris);
+      copier.successMessage = "Copied " + list.length + " files";
       copier.running = true;
-      toast.show("Copied " + list.length + " files");
       return;
     }
-    var src = current.kind === "video" ? current.thumb : current.preview;
-    var mime = /\.png$/i.test(src) ? "image/png" : "image/jpeg";
-    copier.command = ["bash", "-c", 'wl-copy --type "$1" < "$2"', "_", mime, src];
+    var it = list[0];
+    var src = it.kind === "video" ? it.thumb : it.preview;
+    copier.command = [binDir + "/omarchy-icloud-photos-copy", src];
+    copier.successMessage = "Copied image to clipboard";
+    toast.show("Copying image…", 30000);
     copier.running = true;
-    toast.show("Copied to clipboard");
   }
 
   // Save to ~/Downloads in a format anything can open: HEIC becomes a
@@ -485,12 +512,13 @@ ShellRoot {
   onViewerOpenChanged: if (!viewerOpen) infoOpen = false
 
   function copyPath() {
+    if (copier.running) return;
     var list = targets();
     if (list.length === 0) return;
     var paths = list.map(function (it) { return it.path; });
     copier.command = ["bash", "-c", 'printf "%s\n" "$@" | wl-copy', "_"].concat(paths);
+    copier.successMessage = list.length === 1 ? "Copied " + paths[0] : "Copied " + list.length + " paths";
     copier.running = true;
-    toast.show(list.length === 1 ? "Copied " + paths[0] : "Copied " + list.length + " paths");
   }
 
   function startSync() {
@@ -722,6 +750,20 @@ ShellRoot {
       anchors.fill: parent
       focus: true
       Component.onCompleted: forceActiveFocus()
+
+      Shortcut {
+        sequence: "Ctrl+C"
+        context: Qt.WindowShortcut
+        enabled: !root.needLogin && !root.helpOpen && !root.pendingDelete && !copyMenu.visible && root.current !== null
+        onActivated: root.copyCurrent()
+      }
+
+      CopyMenu {
+        id: copyMenu
+        theme: appTheme
+        onRequestCopy: items => root.copyCurrent(items)
+        onClosed: keys.forceActiveFocus()
+      }
 
       Keys.onPressed: event => {
         var k = event.key;
@@ -982,6 +1024,7 @@ ShellRoot {
                     // rebuilds the grid, hence the guard.
                     checked: !!root.items[modelData] && root.checked[root.items[modelData].id] === true
                     onSelectedChanged: if (selected) grid.reveal(this)
+                    onContextMenuRequested: (x, y) => root.showCopyMenu(this, x, y, index)
                     // Click selects, a click on the selected one opens.
                     // Shift-click checks the range from the anchor, ctrl-click
                     // toggles one.
@@ -1152,6 +1195,7 @@ ShellRoot {
         onRequestPrev: root.move(-1)
         onRequestCopyPath: root.copyPath()
         onRequestSave: root.saveToDownloads()
+        onContextMenuRequested: (x, y) => root.showCopyMenu(viewer, x, y, -1)
       }
 
       // ---- Sign-in ----------------------------------------------------------

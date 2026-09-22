@@ -14,6 +14,7 @@ Rectangle {
   property bool checked: false
 
   signal clicked(int modifiers)
+  signal contextMenuRequested(real x, real y)
 
   width: size
   height: size
@@ -134,6 +135,10 @@ Rectangle {
     anchors.fill: parent
     hoverEnabled: true
     cursorShape: Qt.PointingHandCursor
-    onClicked: mouse => root.clicked(mouse.modifiers)
+    acceptedButtons: Qt.LeftButton | Qt.RightButton
+    onClicked: mouse => {
+      if (mouse.button === Qt.RightButton) root.contextMenuRequested(mouse.x, mouse.y);
+      else root.clicked(mouse.modifiers);
+    }
   }
 }
