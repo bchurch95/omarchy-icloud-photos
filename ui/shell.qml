@@ -755,9 +755,9 @@ ShellRoot {
           if (t === "i") root.toggleInfo()
           else if ((k === Qt.Key_Escape || t === "q") && root.infoOpen) root.infoOpen = false
           else if (k === Qt.Key_Escape || t === "q" || k === Qt.Key_Backspace) root.viewerOpen = false
-          // Arrows scrub while a video is on screen; h/l always move on.
-          else if (k === Qt.Key_Left && viewer.videoShown) viewer.seekBy(-5000)
-          else if (k === Qt.Key_Right && viewer.videoShown) viewer.seekBy(5000)
+          // Shift+Arrows scrub video; plain arrows navigate to previous/next photo or video
+          else if (shift && k === Qt.Key_Left && viewer.videoShown) viewer.seekBy(-5000)
+          else if (shift && k === Qt.Key_Right && viewer.videoShown) viewer.seekBy(5000)
           else if (k === Qt.Key_Left || t === "h" || t === "k" || k === Qt.Key_Up) root.move(-1)
           else if (k === Qt.Key_Right || t === "l" || t === "j" || k === Qt.Key_Down) root.move(1)
           else if (k === Qt.Key_Space) viewer.togglePlay()
@@ -774,8 +774,10 @@ ShellRoot {
         else if (k === Qt.Key_Right || k === Qt.Key_L) root.move(1, shift)
         else if (k === Qt.Key_Down || k === Qt.Key_J) root.move(grid.columns, shift)
         else if (k === Qt.Key_Up || k === Qt.Key_K) root.move(-grid.columns, shift)
-        else if (t === "g") { root.jumpTo(root.items.length > 0 ? 0 : -1, false); }
-        else if (t === "G") { root.jumpTo(root.items.length - 1, false); root.pinBottom = true; grid.scrollToBottom(); }
+        else if (k === Qt.Key_PageDown) root.move(grid.columns * 3, shift)
+        else if (k === Qt.Key_PageUp) root.move(-grid.columns * 3, shift)
+        else if (k === Qt.Key_Home || t === "g") { root.jumpTo(root.items.length > 0 ? 0 : -1, false); }
+        else if (k === Qt.Key_End || t === "G") { root.jumpTo(root.items.length - 1, false); root.pinBottom = true; grid.scrollToBottom(); }
         else if (k === Qt.Key_Return || k === Qt.Key_Enter || k === Qt.Key_Space) { if (root.current) root.viewerOpen = true; }
         else if (t === "o") root.openCurrent()
         else if (t === "y") root.copyCurrent()
