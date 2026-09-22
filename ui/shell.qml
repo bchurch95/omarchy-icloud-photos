@@ -774,8 +774,10 @@ ShellRoot {
         else if (k === Qt.Key_Right || k === Qt.Key_L) root.move(1, shift)
         else if (k === Qt.Key_Down || k === Qt.Key_J) root.move(grid.columns, shift)
         else if (k === Qt.Key_Up || k === Qt.Key_K) root.move(-grid.columns, shift)
-        else if (t === "g") { root.jumpTo(root.items.length > 0 ? 0 : -1, false); }
-        else if (t === "G") { root.jumpTo(root.items.length - 1, false); root.pinBottom = true; grid.scrollToBottom(); }
+        else if (k === Qt.Key_PageDown) root.move(grid.columns * 3, shift)
+        else if (k === Qt.Key_PageUp) root.move(-grid.columns * 3, shift)
+        else if (k === Qt.Key_Home || t === "g") { root.jumpTo(root.items.length > 0 ? 0 : -1, false); }
+        else if (k === Qt.Key_End || t === "G") { root.jumpTo(root.items.length - 1, false); root.pinBottom = true; grid.scrollToBottom(); }
         else if (k === Qt.Key_Return || k === Qt.Key_Enter || k === Qt.Key_Space) { if (root.current) root.viewerOpen = true; }
         else if (t === "o") root.openCurrent()
         else if (t === "y") root.copyCurrent()

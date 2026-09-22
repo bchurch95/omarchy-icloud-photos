@@ -18,7 +18,8 @@ Rectangle {
       ["ctrl + a", "select everything"],
       ["esc", "clear the selection, or quit"],
       ["enter  space", "open the viewer"],
-      ["g  G", "oldest, newest"],
+      ["page up  page down", "move a few rows"],
+      ["g  G  home  end", "oldest, newest"],
       ["-  +", "smaller, larger thumbnails"],
       ["r", "sync now"],
       ["q", "quit"]
