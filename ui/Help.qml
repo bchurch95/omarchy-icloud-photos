@@ -25,7 +25,7 @@ Rectangle {
       ["q", "quit"]
     ]},
     { title: "Everywhere", keys: [
-      ["d", "move to Recently Deleted"],
+      ["d  del", "move to Recently Deleted"],
       ["u", "undo the last delete"],
       ["o", "open in the default app"],
       ["ctrl + c  y", "copy the image, or the files"],

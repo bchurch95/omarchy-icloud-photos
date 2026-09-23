@@ -11,6 +11,11 @@ import Quickshell.Io
 ShellRoot {
   id: root
 
+  // The window runs straight out of the checkout, so every git operation on
+  // it looks like an edit and Quickshell reloads and says so on screen. The
+  // reload is welcome, the notification is not.
+  Component.onCompleted: Quickshell.inhibitReloadPopup()
+
   readonly property string cacheDir:
     (Quickshell.env("XDG_CACHE_HOME") || (Quickshell.env("HOME") + "/.cache")) + "/omarchy-icloud-photos"
   // Qt.resolvedUrl refuses to leave the shell directory (it returns
@@ -383,6 +388,47 @@ ShellRoot {
       if (checkedCount > 0) clearChecked();
       anchor = selected;
     }
+  }
+
+  // Up and down through the grid as it is actually laid out. Each day is its
+  // own block of rows, so a day that does not fill its last row shifts every
+  // row after it: counting a fixed number of items back lands somewhere
+  // arbitrary, and the wider the window the further off it gets. This walks
+  // rows within the day and steps into the neighbouring day at the edges,
+  // keeping the column so the cursor travels in a straight line.
+  function moveRow(dir, extend) {
+    if (items.length === 0 || selected < 0) return;
+    var cols = Math.max(1, grid.columns);
+    var d = -1, pos = -1;
+    for (var i = 0; i < days.length && d < 0; i++) {
+      var at = days[i].indices.indexOf(selected);
+      if (at >= 0) { d = i; pos = at; }
+    }
+    if (d < 0) { move(dir * cols, extend); return; }
+
+    var col = pos % cols;
+    var row = Math.floor(pos / cols);
+    var here = days[d].indices;
+    var target = -1;
+
+    if (dir < 0) {
+      if (row > 0) target = here[Math.min((row - 1) * cols + col, here.length - 1)];
+      else if (d > 0) {
+        var prev = days[d - 1].indices;
+        var lastRow = Math.floor((prev.length - 1) / cols);
+        target = prev[Math.min(lastRow * cols + col, prev.length - 1)];
+      }
+    } else {
+      var lastRowHere = Math.floor((here.length - 1) / cols);
+      if (row < lastRowHere) target = here[Math.min((row + 1) * cols + col, here.length - 1)];
+      else if (d < days.length - 1) {
+        var next = days[d + 1].indices;
+        target = next[Math.min(col, next.length - 1)];
+      }
+    }
+
+    if (target === undefined || target < 0) return;
+    jumpTo(target, extend);
   }
 
   function jumpTo(index, extend) {
@@ -785,7 +831,7 @@ ShellRoot {
         }
         var shift = (event.modifiers & Qt.ShiftModifier) !== 0;
         var ctrl = (event.modifiers & Qt.ControlModifier) !== 0;
-        if (t === "d") { root.askDelete(); event.accepted = true; return; }
+        if (t === "d" || k === Qt.Key_Delete) { root.askDelete(); event.accepted = true; return; }
         if (t === "u") { root.undoDelete(); event.accepted = true; return; }
         if (t === "s") { root.saveToDownloads(); event.accepted = true; return; }
         if (t === "W") { root.setWallpaper(); event.accepted = true; return; }
@@ -816,10 +862,10 @@ ShellRoot {
         else if (k === Qt.Key_Escape) { if (root.checkedCount > 0) root.clearChecked(); else Qt.quit(); }
         else if (k === Qt.Key_Left || k === Qt.Key_H) root.move(-1, shift)
         else if (k === Qt.Key_Right || k === Qt.Key_L) root.move(1, shift)
-        else if (k === Qt.Key_Down || k === Qt.Key_J) root.move(grid.columns, shift)
-        else if (k === Qt.Key_Up || k === Qt.Key_K) root.move(-grid.columns, shift)
-        else if (k === Qt.Key_PageDown) root.move(grid.columns * 3, shift)
-        else if (k === Qt.Key_PageUp) root.move(-grid.columns * 3, shift)
+        else if (k === Qt.Key_Down || k === Qt.Key_J) root.moveRow(1, shift)
+        else if (k === Qt.Key_Up || k === Qt.Key_K) root.moveRow(-1, shift)
+        else if (k === Qt.Key_PageDown) { for (var pd = 0; pd < 3; pd++) root.moveRow(1, shift); }
+        else if (k === Qt.Key_PageUp) { for (var pu = 0; pu < 3; pu++) root.moveRow(-1, shift); }
         else if (k === Qt.Key_Home || t === "g") { root.jumpTo(root.items.length > 0 ? 0 : -1, false); }
         else if (k === Qt.Key_End || t === "G") { root.jumpTo(root.items.length - 1, false); root.pinBottom = true; grid.scrollToBottom(); }
         else if (k === Qt.Key_Return || k === Qt.Key_Enter || k === Qt.Key_Space) { if (root.current) root.viewerOpen = true; }
