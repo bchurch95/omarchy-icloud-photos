@@ -941,16 +941,100 @@ ShellRoot {
         contentHeight: column.implicitHeight + 32
         boundsBehavior: Flickable.StopAtBounds
 
-        // Flickable turns wheel ticks into flicks with inertia, which feels
-        // like scrolling through syrup. Move the content directly instead:
-        // pixel deltas from a touchpad as they come, one wheel notch as a
-        // fixed step. Dragging with a finger still flicks.
+        // Kinetic momentum glide timer for touchpad flick gestures
+        Timer {
+          id: momentumTimer
+          interval: 16
+          repeat: true
+          property real lastFrameTime: 0
+
+          onTriggered: {
+            var now = Date.now();
+            var dtSec = lastFrameTime > 0 ? Math.min(0.05, (now - lastFrameTime) / 1000) : 0.016;
+            lastFrameTime = now;
+
+            var dy = wheelHandler.velocity * dtSec;
+            var newY = grid.contentY - dy;
+
+            if (newY <= 0) {
+              grid.contentY = 0;
+              wheelHandler.velocity = 0;
+              stop();
+              return;
+            }
+            var maxY = Math.max(0, grid.contentHeight - grid.height);
+            if (newY >= maxY) {
+              grid.contentY = maxY;
+              wheelHandler.velocity = 0;
+              stop();
+              return;
+            }
+
+            grid.contentY = newY;
+            // Frame-rate independent exponential friction decay (~0.92 per 16ms)
+            wheelHandler.velocity *= Math.pow(0.92, dtSec / 0.016);
+
+            if (Math.abs(wheelHandler.velocity) < 20) {
+              wheelHandler.velocity = 0;
+              stop();
+            }
+          }
+
+          onRunningChanged: {
+            if (running) lastFrameTime = Date.now();
+          }
+        }
+
+        // Finger release detector for touchpad (triggers kinetic inertia when fingers lift)
+        Timer {
+          id: releaseTimer
+          interval: 60
+          repeat: false
+          onTriggered: {
+            if (Math.abs(wheelHandler.velocity) > 60) {
+              momentumTimer.start();
+            } else {
+              wheelHandler.velocity = 0;
+            }
+          }
+        }
+
+        // Move the content directly: 1:1 pixel deltas with kinetic flick inertia
+        // for touchpads, and a fixed discrete step (140px) per mouse wheel notch.
         WheelHandler {
+          id: wheelHandler
           acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
+          property real velocity: 0
+          property real lastEventTime: 0
+
           onWheel: event => {
-            var dy = event.pixelDelta.y !== 0 ? event.pixelDelta.y : event.angleDelta.y / 120 * 140;
-            grid.contentY = Math.max(0, Math.min(grid.contentHeight - grid.height, grid.contentY - dy));
             root.pinBottom = false;
+            scrollAnim.stop();
+
+            if (event.pixelDelta.y !== 0) {
+              // Touchpad: 1:1 responsive drag with velocity tracking and flick inertia
+              momentumTimer.stop();
+              var now = Date.now();
+              var dt = lastEventTime > 0 ? Math.max(1, now - lastEventTime) : 16;
+              lastEventTime = now;
+
+              var dy = event.pixelDelta.y;
+              grid.contentY = Math.max(0, Math.min(grid.contentHeight - grid.height, grid.contentY - dy));
+
+              var instVel = (dy / dt) * 1000;
+              wheelHandler.velocity = Math.max(-6000, Math.min(6000, wheelHandler.velocity * 0.3 + instVel * 0.7));
+
+              releaseTimer.restart();
+              event.accepted = true;
+              return;
+            }
+
+            // Mouse wheel: discrete stepped notches (140px per notch), no coasting
+            momentumTimer.stop();
+            releaseTimer.stop();
+            wheelHandler.velocity = 0;
+            var wheelDy = (event.angleDelta.y / 120) * 140;
+            grid.contentY = Math.max(0, Math.min(grid.contentHeight - grid.height, grid.contentY - wheelDy));
             event.accepted = true;
           }
         }
@@ -973,16 +1057,39 @@ ShellRoot {
           if (root.pinBottom) scrollToBottom();
           else if (restoreY >= 0) contentY = clampY(restoreY);
         }
-        onHeightChanged: if (root.pinBottom) scrollToBottom()
-        onMovementStarted: root.pinBottom = false
+        onMovementStarted: {
+          root.pinBottom = false;
+          scrollAnim.stop();
+          momentumTimer.stop();
+          releaseTimer.stop();
+          wheelHandler.velocity = 0;
+        }
+
+        NumberAnimation {
+          id: scrollAnim
+          target: grid
+          property: "contentY"
+          duration: 130
+          easing.type: Easing.OutQuad
+        }
 
         function reveal(thumb) {
           if (root.pinBottom || root.suppressReveal) return;
+          momentumTimer.stop();
+          releaseTimer.stop();
+          wheelHandler.velocity = 0;
           var p = thumb.mapToItem(grid.contentItem, 0, 0);
           var top = p.y - 44;      // keep the day label in view when moving up
           var bottom = p.y + thumb.height + 16;
-          if (top < contentY) contentY = Math.max(0, top);
-          else if (bottom > contentY + height) contentY = Math.min(contentHeight - height, bottom - height);
+          var target = contentY;
+          if (top < contentY) target = Math.max(0, top);
+          else if (bottom > contentY + height) target = Math.min(contentHeight - height, bottom - height);
+          if (target !== contentY) {
+            scrollAnim.stop();
+            scrollAnim.from = grid.contentY;
+            scrollAnim.to = target;
+            scrollAnim.start();
+          }
         }
 
         Column {
