@@ -1011,25 +1011,42 @@ ShellRoot {
             root.pinBottom = false;
             scrollAnim.stop();
 
+            // Fingers off the touchpad. Wayland reports that as a ScrollEnd
+            // carrying no delta at all, so it has to be caught before the
+            // wheel branch below, which would read it as a notch and throw
+            // the speed away: that is what kept the glide from ever starting.
+            if (event.phase === Qt.ScrollEnd) {
+              releaseTimer.stop();
+              if (Math.abs(wheelHandler.velocity) > 60) momentumTimer.start();
+              else wheelHandler.velocity = 0;
+              event.accepted = true;
+              return;
+            }
+
             if (event.pixelDelta.y !== 0) {
-              // Touchpad: 1:1 responsive drag with velocity tracking and flick inertia
+              // Touchpad. A finger travels a few centimetres and a month of
+              // photos is a good deal longer than that, so the picture moves
+              // three times what the finger does, and a flick coasts on from
+              // there.
               momentumTimer.stop();
               var now = Date.now();
               var dt = lastEventTime > 0 ? Math.max(1, now - lastEventTime) : 16;
               lastEventTime = now;
 
-              var dy = event.pixelDelta.y;
+              var dy = event.pixelDelta.y * 3;
               grid.contentY = Math.max(0, Math.min(grid.contentHeight - grid.height, grid.contentY - dy));
 
               var instVel = (dy / dt) * 1000;
               wheelHandler.velocity = Math.max(-6000, Math.min(6000, wheelHandler.velocity * 0.3 + instVel * 0.7));
 
+              // Only a fallback: a compositor that sends no ScrollEnd still
+              // gets its glide, a little later.
               releaseTimer.restart();
               event.accepted = true;
               return;
             }
 
-            // Mouse wheel: discrete stepped notches (140px per notch), no coasting
+            // A mouse wheel stays as it was: one notch, one step, no coasting.
             momentumTimer.stop();
             releaseTimer.stop();
             wheelHandler.velocity = 0;
@@ -1057,6 +1074,7 @@ ShellRoot {
           if (root.pinBottom) scrollToBottom();
           else if (restoreY >= 0) contentY = clampY(restoreY);
         }
+        onHeightChanged: if (root.pinBottom) scrollToBottom()
         onMovementStarted: {
           root.pinBottom = false;
           scrollAnim.stop();
